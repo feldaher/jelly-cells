@@ -1,0 +1,286 @@
+import './style.css';
+import type { Vec3 } from './contracts';
+import { World } from './app/world';
+import { raycast, rayPlane, screenRay, type Ray } from './app/pick';
+import { startGrab } from './physics/grab';
+import { axisAngleMat } from './math/mat3';
+import { bladeMesh } from './cut/knife';
+import { Renderer, type Camera } from './render/renderer';
+import { VARIETIES, type Variety } from './render/palette';
+
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const canvas = $<HTMLCanvasElement>('stage');
+const strokeLine = document.querySelector('#stroke polyline') as SVGPolylineElement;
+const status = document.querySelector('.status') as HTMLElement;
+const statusText = $('status-text');
+
+const REACH = 7;
+const HELP = {
+  hand: '<b>Hand</b>Grab any part (mother, bud or neck) and pull. Scroll, or add a second finger, while holding to twist it. Drag the floor to look around.',
+  knife: '<b>Knife</b>Draw a stroke across the cell. The blade comes down along it and splits every piece it crosses. Then turn the halves over and look at the faces.',
+};
+
+let tool: 'hand' | 'knife' = 'hand';
+let variety: Variety = VARIETIES[0];
+let showMesh = false;
+
+// Orbit camera around a target that follows the pieces.
+const cam = { yaw: -0.42, pitch: 0.6, dist: 21, target: [1.1, 1.7, 0] };
+let aspect = 16 / 10;
+function camera(): Camera {
+  const { yaw, pitch, target } = cam;
+  // narrow screens pull back so the whole cell stays in view, and look past the control sheet
+  const narrow = Math.max(1, 1.05 / aspect);
+  const dist = cam.dist * narrow;
+  const eye = [
+    target[0] + dist * Math.sin(yaw) * Math.cos(pitch),
+    target[1] + dist * Math.sin(pitch),
+    target[2] + dist * Math.cos(yaw) * Math.cos(pitch),
+  ];
+  return { eye, target, fovY: (30 * Math.PI) / 180, lensShiftY: aspect < 0.9 ? 0.13 : 0 };
+}
+function camForward(): Vec3 {
+  const c = camera();
+  const d = [c.target[0] - c.eye[0], c.target[1] - c.eye[1], c.target[2] - c.eye[2]];
+  const l = Math.hypot(d[0], d[1], d[2]);
+  return [d[0] / l, d[1] / l, d[2] / l];
+}
+
+function toast(msg: string) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout((toast as unknown as { h: number }).h);
+  (toast as unknown as { h: number }).h = window.setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function fail(msg: string) {
+  $('fallback').hidden = false;
+  $('fallback-msg').textContent = msg;
+  status.classList.add('error');
+  statusText.textContent = 'WebGPU · Unavailable';
+  canvas.style.display = 'none';
+}
+
+async function main() {
+  let renderer: Renderer;
+  try {
+    renderer = await Renderer.create(canvas);
+  } catch (e) {
+    fail(`${(e as Error).message} Try a recent Chrome, Edge or Safari (18+), or Firefox with WebGPU enabled.`);
+    return;
+  }
+  renderer.device.lost.then((info) => fail(`The GPU device was lost (${info.message || info.reason}). Reload the page to try again.`));
+
+  statusText.textContent = 'WebGPU · Building';
+  await new Promise((r) => setTimeout(r, 30));
+  const world = new World();
+  renderer.setAnatomy(world.an);
+  statusText.textContent = 'WebGPU · Live';
+
+  setupUi(world);
+  setupInput(world, renderer);
+
+  let last = performance.now(), frame = 0;
+  const debug = new URLSearchParams(location.search).has('debug');
+  const loop = (now: number) => {
+    aspect = renderer.aspect;
+    const dt = (now - last) / 1000;
+    last = now;
+    world.update(dt);
+    // follow the pieces, gently
+    const c = world.centre();
+    const k = 1 - Math.exp(-dt * 2.5);
+    cam.target[0] += (c[0] - cam.target[0]) * k;
+    cam.target[1] += (Math.min(3, Math.max(1.2, c[1])) - cam.target[1]) * k;
+    cam.target[2] += (c[2] - cam.target[2]) * k;
+    renderer.render(world.pieces, camera(), {
+      variety, showMesh, time: now / 1000,
+      knife: world.knife ? bladeMesh(world.knife) : null,
+    });
+    if (frame++ % 6 === 0) updateStats(world);
+    if (debug && frame % 30 === 0) statusText.textContent = `step ${world.stepMs.toFixed(1)} ms`;
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}
+
+function updateStats(world: World) {
+  const s = world.stats();
+  $('s-mass').textContent = `≈${Math.round(s.massPg)}`;
+  $('s-vol').textContent = s.volumePct.toFixed(1);
+  $('s-ke').textContent = s.kineticMicroJ < 100 ? s.kineticMicroJ.toFixed(2) : Math.round(s.kineticMicroJ).toString();
+  $('s-pieces').textContent = String(s.pieces);
+}
+
+function setupUi(world: World) {
+  const help = $('help');
+  help.innerHTML = HELP.hand;
+  document.querySelectorAll<HTMLButtonElement>('.tool').forEach((b) => b.addEventListener('click', () => {
+    tool = b.dataset.tool as typeof tool;
+    document.querySelectorAll<HTMLButtonElement>('.tool').forEach((o) => {
+      o.classList.toggle('active', o === b);
+      o.setAttribute('aria-checked', String(o === b));
+    });
+    help.innerHTML = HELP[tool];
+    canvas.classList.toggle('knife', tool === 'knife');
+  }));
+
+  const sw = $('swatches');
+  VARIETIES.forEach((v, i) => {
+    const b = document.createElement('button');
+    b.className = 'swatch' + (i === 0 ? ' active' : '');
+    b.innerHTML = `<span class="chip" style="--a:${v.swatch[0]};--b:${v.swatch[1]}"></span>${v.name}`;
+    b.addEventListener('click', () => {
+      variety = v;
+      sw.querySelectorAll('.swatch').forEach((o) => o.classList.toggle('active', o === b));
+      applyTheme();
+    });
+    sw.appendChild(b);
+  });
+  applyTheme();
+
+  const bindSlider = (id: string, set: (x: number) => void) => {
+    const el = $<HTMLInputElement>(id), out = $(`${id}-out`);
+    el.addEventListener('input', () => { set(Number(el.value)); out.textContent = Number(el.value).toFixed(2); });
+  };
+  bindSlider('firm', (x) => (world.params.firmness = x));
+  bindSlider('damp', (x) => (world.params.damping = x));
+  $('nudge').addEventListener('click', () => world.nudge());
+  $('reset').addEventListener('click', () => world.reset());
+  $<HTMLInputElement>('slow').addEventListener('change', (e) => (world.slow = (e.target as HTMLInputElement).checked));
+  $<HTMLInputElement>('mesh').addEventListener('change', (e) => (showMesh = (e.target as HTMLInputElement).checked));
+  const pause = $('pause');
+  pause.addEventListener('click', () => {
+    world.paused = !world.paused;
+    pause.textContent = world.paused ? 'Resume' : 'Pause';
+    statusText.textContent = world.paused ? 'WebGPU · Paused' : 'WebGPU · Live';
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLInputElement) return;
+    if (e.key === ' ') { e.preventDefault(); pause.click(); }
+    if (e.key === 'h') (document.querySelector('[data-tool="hand"]') as HTMLButtonElement).click();
+    if (e.key === 'k') (document.querySelector('[data-tool="knife"]') as HTMLButtonElement).click();
+    if (e.key === 'n') world.nudge();
+    if (e.key === 'r') world.reset();
+  });
+}
+
+function applyTheme() {
+  const root = document.documentElement;
+  root.style.setProperty('--bg', variety.background);
+  root.style.setProperty('--ink', variety.ink);
+  root.dataset.variety = variety.id;
+  const items: [string, string][] = [
+    ['Cell wall', variety.wall], ['Cytoplasm', variety.scatter], ['Nucleus', variety.nucleus], ['Nucleolus', variety.nucleolus],
+    ['Vacuole', variety.vacuole], ['Mitochondria', variety.mitochondrion], ['Septin ring', variety.septin], ['Bud scars', variety.budScar],
+  ];
+  $('legend').innerHTML = items.map(([n, c]) => `<li><i style="--c:${c}"></i>${n}</li>`).join('');
+}
+
+function setupInput(world: World, renderer: Renderer) {
+  const pointers = new Map<number, { x: number; y: number }>();
+  let mode: 'none' | 'grab' | 'orbit' | 'stroke' = 'none';
+  let grabStart: Vec3 = [0, 0, 0];
+  let twist = 0, twistRef = 0;
+  let stroke: { x: number; y: number }[] = [];
+
+  const ray = (x: number, y: number): Ray => {
+    renderer.cameraMatrices(camera());
+    return screenRay(renderer.viewProj, x, y, canvas.clientWidth, canvas.clientHeight);
+  };
+  const setTwist = () => {
+    if (!world.grab) return;
+    const f = camForward();
+    world.grab.rot = axisAngleMat(f[0], f[1], f[2], twist);
+  };
+  const pairAngle = () => {
+    const [a, b] = [...pointers.values()];
+    return Math.atan2(b.y - a.y, b.x - a.x);
+  };
+
+  canvas.addEventListener('pointerdown', (e) => {
+    pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+    canvas.setPointerCapture(e.pointerId);
+    if (pointers.size === 2 && mode === 'grab') { twistRef = pairAngle() - twist; return; }
+    if (pointers.size > 1) return;
+    if (tool === 'knife') {
+      if (world.knife) return;
+      mode = 'stroke';
+      stroke = [{ x: e.offsetX, y: e.offsetY }];
+      return;
+    }
+    const hit = raycast(world.pieces, ray(e.offsetX, e.offsetY));
+    if (hit) {
+      mode = 'grab';
+      grabStart = hit.point;
+      twist = 0;
+      world.grab = startGrab(hit.piece, hit.point, 0.9);
+      canvas.classList.add('grabbing');
+    } else mode = 'orbit';
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    const prev = pointers.get(e.pointerId);
+    if (!prev) return;
+    const dx = e.offsetX - prev.x, dy = e.offsetY - prev.y;
+    pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+    if (mode === 'grab' && pointers.size === 2) { twist = pairAngle() - twistRef; setTwist(); return; }
+    if (mode === 'grab' && world.grab) {
+      const p = rayPlane(ray(e.offsetX, e.offsetY), camForward(), grabStart);
+      if (!p) return;
+      const off = [p[0] - grabStart[0], p[1] - grabStart[1], p[2] - grabStart[2]];
+      const l = Math.hypot(off[0], off[1], off[2]);
+      const s = l > REACH ? REACH / l : 1;
+      world.grab.target = [grabStart[0] + off[0] * s, Math.max(0.1, grabStart[1] + off[1] * s), grabStart[2] + off[2] * s];
+    } else if (mode === 'orbit') {
+      cam.yaw -= dx * 0.006;
+      cam.pitch = Math.min(1.35, Math.max(0.18, cam.pitch + dy * 0.005));
+    } else if (mode === 'stroke') {
+      stroke.push({ x: e.offsetX, y: e.offsetY });
+      strokeLine.setAttribute('points', stroke.map((p) => `${p.x},${p.y}`).join(' '));
+    }
+  });
+
+  const end = (e: PointerEvent) => {
+    if (!pointers.delete(e.pointerId)) return;
+    if (pointers.size > 0) return;
+    if (mode === 'grab') { world.grab = null; canvas.classList.remove('grabbing'); }
+    if (mode === 'stroke') finishStroke();
+    mode = 'none';
+  };
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (mode === 'grab' && world.grab) { twist += e.deltaY * 0.005; setTwist(); return; }
+    cam.dist = Math.min(45, Math.max(9, cam.dist * Math.exp(e.deltaY * 0.001)));
+  }, { passive: false });
+
+  function finishStroke() {
+    const pts = stroke;
+    stroke = [];
+    setTimeout(() => strokeLine.setAttribute('points', ''), 220);
+    if (pts.length < 2 || Math.hypot(pts[pts.length - 1].x - pts[0].x, pts[pts.length - 1].y - pts[0].y) < 24) return;
+    // Read the stroke on the surface it was drawn over; fall back to a horizontal plane at mid-height.
+    const hits: Vec3[] = [];
+    const nSamples = Math.min(32, pts.length);
+    for (let i = 0; i < nSamples; i++) {
+      const p = pts[Math.round((i * (pts.length - 1)) / Math.max(1, nSamples - 1))];
+      const h = raycast(world.pieces, ray(p.x, p.y));
+      if (h) hits.push(h.point);
+    }
+    const midY = world.centre()[1];
+    const onPlane = (p: { x: number; y: number }) => rayPlane(ray(p.x, p.y), [0, 1, 0], [0, midY, 0]);
+    let a: Vec3 | null = hits.length >= 2 ? hits[0] : onPlane(pts[0]);
+    let b: Vec3 | null = hits.length >= 2 ? hits[hits.length - 1] : onPlane(pts[pts.length - 1]);
+    if (hits.length >= 2 && Math.hypot(b![0] - a![0], b![2] - a![2]) < 0.5) { a = onPlane(pts[0]); b = onPlane(pts[pts.length - 1]); }
+    if (!a || !b) { toast('Draw the stroke over the board.'); return; }
+    const r = world.cut(a, b, camForward());
+    if (r === 'miss') toast('Missed. Draw a stroke across the cell.');
+    if (r === 'full') toast('That is plenty of slices. Reset to start again.');
+  }
+}
+
+main();

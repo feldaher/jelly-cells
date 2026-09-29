@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Yeast Jelly — Material Studies No. 010</title>
+  <meta name="description" content="A budding yeast cell as a soft body you can grab, wobble and cut open to see the nucleus, vacuole and mitochondria inside. XPBD tetrahedra and WebGPU." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400;1,6..72,500&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='13' cy='17' r='10' fill='%23e5c68e'/%3E%3Ccircle cx='24' cy='13' r='6' fill='%23f4efe2' stroke='%23e5c68e'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <canvas id="stage" aria-label="Interactive soft-body budding yeast cell"></canvas>
+  <svg id="stroke" aria-hidden="true"><polyline points="" /></svg>
+
+  <header class="title">
+    <p class="eyebrow">Material Studies / No. 010</p>
+    <h1><span>Budding</span><span class="indent">Yeast.</span></h1>
+    <p class="tagline">A mother and her bud.<br />A little wobble.<br />Cut it open to look inside.</p>
+  </header>
+
+  <div class="status"><span class="dot"></span><span id="status-text">WebGPU · Starting</span></div>
+
+  <aside class="panel" id="panel">
+    <div class="panel-head"><span class="label">The Specimen</span><span class="fig">fig. 10</span></div>
+
+    <div class="group">
+      <span class="label">Tool</span>
+      <div class="seg" role="radiogroup" aria-label="Tool">
+        <button class="tool active" data-tool="hand" role="radio" aria-checked="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V5.5a1.5 1.5 0 0 1 3 0V10m0-5.5v-1a1.5 1.5 0 0 1 3 0V10m0-4.5a1.5 1.5 0 0 1 3 0V11m0-3a1.5 1.5 0 0 1 3 0v6a7 7 0 0 1-7 7h-1.3a6 6 0 0 1-4.6-2.2L4 15.5a1.6 1.6 0 0 1 2.4-2L8 15V11"/></svg>
+          Hand
+        </button>
+        <button class="tool" data-tool="knife" role="radio" aria-checked="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l7.5-7.5M20.5 3.5c-3 0-9 5-11 8l3 3c3-2 8-8 8-11z"/></svg>
+          Knife
+        </button>
+      </div>
+    </div>
+
+    <div class="group">
+      <span class="label">Variety</span>
+      <div class="swatches" id="swatches"></div>
+    </div>
+
+    <div class="group">
+      <div class="slider-head"><span class="label">Firmness</span><output id="firm-out">0.40</output></div>
+      <input type="range" id="firm" min="0" max="1" step="0.01" value="0.4" aria-label="Firmness" />
+      <div class="ends"><em>trembling</em><em>set</em></div>
+      <div class="slider-head"><span class="label">Internal damping</span><output id="damp-out">0.45</output></div>
+      <input type="range" id="damp" min="0" max="1" step="0.01" value="0.45" aria-label="Internal damping" />
+      <div class="ends"><em>lively</em><em>syrupy</em></div>
+    </div>
+
+    <div class="group">
+      <div class="row"><button id="nudge" class="btn grow">Give it a nudge</button><button id="reset" class="btn">Reset</button></div>
+      <div class="row checks">
+        <label><input type="checkbox" id="slow" /> ¼ speed</label>
+        <label><input type="checkbox" id="mesh" /> Show mesh</label>
+      </div>
+      <button id="pause" class="btn wide">Pause</button>
+    </div>
+
+    <div class="group key">
+      <span class="label">Key</span>
+      <ul id="legend"></ul>
+    </div>
+  </aside>
+
+  <section class="readout">
+    <p class="help" id="help"></p>
+    <div class="stats">
+      <div><span class="label">Mass</span><b id="s-mass">—</b><i>pg</i></div>
+      <div><span class="label">Volume</span><b id="s-vol">—</b><i>% of rest</i></div>
+      <div><span class="label">Kinetic</span><b id="s-ke">—</b><i>µJ</i></div>
+      <div><span class="label">Pieces</span><b id="s-pieces">—</b></div>
+    </div>
+    <p class="fine">Illustrative scale: 1 sim unit = 1 µm of cell, with dynamics drawn as if it were 3 cm of gelatin (at true size a yeast cell is far too small and viscous to wobble). Mass is the cell's, at 1.1 pg/µm³; volume and energy are summed live over every tetrahedron.</p>
+  </section>
+
+  <details class="inside">
+    <summary>Inside the experiment <span>+</span></summary>
+    <div class="inside-body">
+      <h3>A cell made of tetrahedra</h3>
+      <p>The cell is a mother ellipsoid and a smaller bud fused by a smooth union, so they meet at a narrow neck. That shape is filled with a body-centred cubic lattice of tetrahedra, clipped to the surface, with boundary particles snapped onto it. It is solved with XPBD at a fixed 60 Hz step split into 12 substeps. Each tetrahedron is pulled, with finite compliance, toward its best-fit rotated rest shape. That co-rotational constraint also flips inverted elements back out. A volume constraint on either side of it keeps the cytoplasm close to incompressible, so a stretched cell necks in.</p>
+      <p>Every tetrahedron knows what it sits in. Those in the cell wall are four times stiffer than cytoplasm, the nucleus twice as stiff, and the vacuole softer. Damping acts only on relative velocity along mesh edges, so the cell still falls and tumbles freely while its wobble dies away.</p>
+      <h3>Cutting</h3>
+      <p>Your stroke fixes a vertical blade plane. For each piece it crosses, the piece's current pose is fitted with a best rotation, and the plane is carried back into rest space. Each side becomes a new piece: the cell's signed distance field intersected with its half-spaces, rebuilt as a fresh tetrahedral mesh. The knife then presses a groove, breaks through, and hands every new particle the position and speed of the flesh it came from. The blade wedges the faces apart on its way down.</p>
+      <h3>Seeing inside</h3>
+      <p>The skin and the organelles (nucleus, nucleolus, vacuoles, a cortical mitochondrial network, the septin ring) are separate meshes. Each vertex is pinned to a tetrahedron by barycentric weights, so they all wobble together. Every vertex also remembers its rest position. A knife face looks up the anatomy's distance fields at that position, so it shows an exact section through whatever organelle lies in the plane, membranes included.</p>
+      <h3>Light through jelly</h3>
+      <p>WGSL shaders draw the floor, organelles and knife first. Then, piece by piece from back to front, they draw the jelly's back faces to measure how much cytoplasm each view ray crosses. The front faces refract what lies behind by that thickness and absorb it with Beer–Lambert colour. They add a milky wall film, a thin-edge glow, Fresnel reflections of a procedural studio and GGX highlights.</p>
+      <p class="credit">After “Melon Jelly” (Material Studies No. 009). Anatomy is stylised but proportioned after <i>S. cerevisiae</i>.</p>
+    </div>
+  </details>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="fallback" id="fallback" hidden>
+    <h2>This specimen needs WebGPU.</h2>
+    <p id="fallback-msg">Try a recent Chrome, Edge or Safari (18+), or Firefox with WebGPU enabled.</p>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
