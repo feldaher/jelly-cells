@@ -1,13 +1,10 @@
-// Scalar fields for the strain and stiffness views: computed per tet, averaged
-// onto particles, then carried to the skin by its barycentric weights.
+// The deformation view: mechanical strain computed per tet, averaged onto
+// particles, then carried to the skin by its barycentric weights.
 
-import type { Piece, SimMesh, SimParams, ViewMode } from '../contracts';
+import type { Piece, SimMesh } from '../contracts';
 
 /** Strain shown at full colour (30 %). */
 export const STRAIN_FULL = 0.3;
-/** Stiffness multipliers at the two ends of the (log) colour scale. */
-export const STIFF_MIN = 0.5;
-export const STIFF_MAX = 5;
 
 /** Green–Lagrange strain magnitude ‖½(FᵀF − I)‖ per tet: zero for any rigid motion. */
 export function tetStrain(s: SimMesh): Float32Array {
@@ -35,11 +32,6 @@ export function tetStrain(s: SimMesh): Float32Array {
   return out;
 }
 
-/** Stiffness multiplier of each tet's material. */
-export function tetStiffness(s: SimMesh, params: SimParams): Float32Array {
-  return Float32Array.from(s.tetMaterial, (m) => params.materialStiffness[m] ?? 1);
-}
-
 /** Volume-weighted average of a per-tet value onto the particles. */
 export function nodalAverage(s: SimMesh, perTet: Float32Array): Float32Array {
   const n = s.invMass.length, sum = new Float32Array(n), w = new Float32Array(n);
@@ -51,22 +43,16 @@ export function nodalAverage(s: SimMesh, perTet: Float32Array): Float32Array {
   return sum;
 }
 
-/**
- * Fills `piece.skin.scalar` with the view's value mapped to [0, 1]
- * (strain linearly up to STRAIN_FULL, stiffness on a log scale) and returns it.
- */
-export function viewScalars(piece: Piece, mode: Exclude<ViewMode, 'anatomy'>, params: SimParams): Float32Array {
+/** Fills `piece.skin.scalar` with the strain mapped to [0, 1] (full colour at STRAIN_FULL) and returns it. */
+export function deformationScalars(piece: Piece): Float32Array {
   const s = piece.sim, skin = piece.skin;
-  const nodal = nodalAverage(s, mode === 'strain' ? tetStrain(s) : tetStiffness(s, params));
-  const map = mode === 'strain'
-    ? (v: number) => Math.min(1, v / STRAIN_FULL)
-    : (v: number) => Math.min(1, Math.max(0, Math.log(v / STIFF_MIN) / Math.log(STIFF_MAX / STIFF_MIN)));
+  const nodal = nodalAverage(s, tetStrain(s));
   const out = skin.scalar && skin.scalar.length === skin.tetId.length ? skin.scalar : new Float32Array(skin.tetId.length);
   for (let v = 0; v < out.length; v++) {
     const t = 4 * skin.tetId[v];
     let x = 0;
     for (let j = 0; j < 4; j++) x += skin.bary[4 * v + j] * nodal[s.tets[t + j]];
-    out[v] = map(Math.max(0, x));
+    out[v] = Math.min(1, Math.max(0, x) / STRAIN_FULL);
   }
   skin.scalar = out;
   return out;

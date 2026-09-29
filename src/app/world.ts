@@ -1,7 +1,7 @@
 // The world: pieces, the fixed-rate simulation loop, the hand, the knife.
 
 import type { Anatomy, CellType, CellTypeId, CutChild, Label, Piece, Plane, SectionEntry, SimMesh, SkinMesh, Stats, Vec3, ViewMode } from '../contracts';
-import { viewScalars } from '../teach/fields';
+import { deformationScalars } from '../teach/fields';
 import { anatomyOf, cellType } from '../cells';
 import { buildPiece } from '../mesh/piece';
 import { TetGrid, updateSkin } from '../mesh/surface';
@@ -117,7 +117,7 @@ export class World {
       updateSkin(p.skin, p.sim);
       for (const o of p.organelles) updateSkin(o, p.sim);
       if (this.view === 'anatomy') p.skin.scalar = undefined;
-      else viewScalars(p, this.view, this.params);
+      else deformationScalars(p);
     }
   }
 

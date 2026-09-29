@@ -413,7 +413,7 @@ export class Renderer {
     f.set([proj[10], proj[14], 0.5, 200], 76);
     f.set([opt.time, this.primCount, opt.highlight, opt.hidden], 80);
     f.set(packPalette(opt.variety, opt.absorb), 84);
-    f[84 + 4 * 4 + 3] = opt.view === 'strain' ? 1 : opt.view === 'stiffness' ? 2 : 0;
+    f[84 + 4 * 4 + 3] = opt.view === 'deformation' ? 1 : 0;
     q.writeBuffer(this.frameBuf, 0, f);
     q.writeBuffer(this.camLight, 0, lightVP);
     q.writeBuffer(this.camFloor, 0, floorVP);

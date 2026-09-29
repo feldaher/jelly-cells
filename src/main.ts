@@ -1,6 +1,6 @@
 import './style.css';
 import type { CellTypeId, Vec3, ViewMode } from './contracts';
-import { STRAIN_FULL, STIFF_MAX, STIFF_MIN } from './teach/fields';
+import { STRAIN_FULL } from './teach/fields';
 import { CELL_TYPES } from './cells';
 import { TeachUi } from './ui/teach';
 import { World } from './app/world';
@@ -146,9 +146,11 @@ function showStage(world: World) {
   $('stage-group').hidden = !stages;
   if (!stages) return;
   const input = $<HTMLInputElement>('cycle');
+  $('stage-label').textContent = world.type.stageLabel ?? 'Stage';
+  input.setAttribute('aria-label', world.type.stageLabel ?? 'Stage');
   input.max = String(stages.length - 1);
   input.value = String(world.stage);
-  $('stage-ticks').innerHTML = stages.map((st, i) => `<span class="${i === world.stage ? 'on' : ''}">${st.name}</span>`).join('');
+  $('stage-ticks').innerHTML = stages.map((st, i) => `<span style="--at:${(100 * i) / (stages.length - 1)}%;--shift:${i === 0 ? '0' : i === stages.length - 1 ? '-100%' : '-50%'}" class="${i === world.stage ? 'on' : ''}">${st.name}</span>`).join('');
   previewStage(world, world.stage);
 }
 
@@ -160,17 +162,10 @@ function previewStage(world: World, i: number) {
 }
 
 function showColorbar(view: ViewMode) {
-  const cb = $('colorbar');
-  cb.hidden = view === 'anatomy';
-  if (view === 'strain') {
-    $('cb-title').textContent = 'Strain (stretch or squeeze)';
-    $('cb-min').textContent = '0%';
-    $('cb-max').textContent = `${Math.round(STRAIN_FULL * 100)}%+`;
-  } else if (view === 'stiffness') {
-    $('cb-title').textContent = 'Stiffness vs cytoplasm';
-    $('cb-min').textContent = `×${STIFF_MIN}`;
-    $('cb-max').textContent = `×${STIFF_MAX}`;
-  }
+  $('colorbar').hidden = view === 'anatomy';
+  $('cb-title').textContent = 'Deformation (stretch or squeeze)';
+  $('cb-min').textContent = '0%';
+  $('cb-max').textContent = `${Math.round(STRAIN_FULL * 100)}%+`;
 }
 
 function setupUi(world: World, renderer: Renderer) {

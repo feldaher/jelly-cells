@@ -205,7 +205,6 @@ select option { font: 14px var(--sans); color: #1d1b19; background: #fff; }
   .key { margin-top: 14px; }
 }
 
-.seg3 { grid-template-columns: repeat(3, 1fr); }
 .view { font: 400 12.5px var(--sans); color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 9px 4px; cursor: pointer; }
 .view.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .view:not(.active):hover { border-color: var(--faint); }
@@ -213,8 +212,9 @@ select option { font: 14px var(--sans); color: #1d1b19; background: #fff; }
 .stage { display: grid; gap: 6px; margin-top: 6px; }
 .stage[hidden] { display: none; }
 .stage output { font: italic 14px var(--serif); }
-.ticks { display: flex; justify-content: space-between; margin-top: -4px; font: 500 10px var(--mono); color: var(--muted); }
-.ticks span { width: 0; display: flex; justify-content: center; }
+.ticks { position: relative; height: 13px; margin-top: -4px; font: 500 10px var(--mono); color: var(--muted); }
+/* each tick sits under its stop, shifted in proportion so the end ones stay inside the panel */
+.ticks span { position: absolute; top: 0; left: var(--at); transform: translateX(var(--shift)); white-space: nowrap; }
 .ticks span.on { color: var(--ink); }
 .stage-blurb { margin: 2px 0 0; font: italic 13px/1.4 var(--serif); color: var(--muted); }
 

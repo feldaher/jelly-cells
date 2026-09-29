@@ -36,8 +36,8 @@
       <label class="label" for="cell-type">Cell</label>
       <div class="select"><select id="cell-type"></select></div>
       <div class="stage" id="stage-group" hidden>
-        <div class="slider-head"><span class="label">Cell cycle</span><output id="stage-title"></output></div>
-        <input type="range" id="cycle" min="0" max="4" step="1" value="2" aria-label="Cell-cycle stage" />
+        <div class="slider-head"><span class="label" id="stage-label">Stage</span><output id="stage-title"></output></div>
+        <input type="range" id="cycle" min="0" max="4" step="1" value="2" aria-label="Stage" />
         <div class="ticks" id="stage-ticks"></div>
         <p class="stage-blurb" id="stage-blurb"></p>
       </div>
@@ -64,10 +64,9 @@
 
     <div class="group">
       <span class="label">View</span>
-      <div class="seg seg3" role="radiogroup" aria-label="View">
+      <div class="seg" role="radiogroup" aria-label="View">
         <button class="view active" data-view="anatomy" role="radio" aria-checked="true">Anatomy</button>
-        <button class="view" data-view="strain" role="radio" aria-checked="false">Strain</button>
-        <button class="view" data-view="stiffness" role="radio" aria-checked="false">Stiffness</button>
+        <button class="view" data-view="deformation" role="radio" aria-checked="false" title="Mechanical strain: how much each part is stretched or squeezed">Deformation</button>
       </div>
     </div>
 
@@ -134,8 +133,8 @@
       <p>Every tetrahedron knows what it sits in. Wall and cortex, the nucleus and stress fibres are stiffer than cytoplasm; the yeast wall is four times stiffer. Damping acts only on relative velocity along mesh edges, so the cell still falls and tumbles freely while its wobble dies away.</p>
       <h3>Cutting</h3>
       <p>Your stroke fixes a vertical blade plane. For each piece it crosses, the piece's current pose is fitted with a best rotation, and the plane is carried back into rest space. Each side becomes a new piece: the cell's signed distance field intersected with its half-spaces, rebuilt as a fresh tetrahedral mesh. The knife then presses a groove, breaks through, and hands every new particle the position and speed of the flesh it came from. The blade wedges the faces apart on its way down.</p>
-      <h3>Strain and stiffness</h3>
-      <p>The Strain view colours each point by the Green–Lagrange strain of the tetrahedra around it, the part of the deformation left once rotation is taken out. A cell that is only tumbling stays dark; pull it and the colour gathers where it stretches. The Stiffness view shows each material's stiffness relative to cytoplasm. Both fields are averaged onto the particles and carried to the surface by the same barycentric weights as the skin, so knife faces show them inside too.</p>
+      <h3>Deformation</h3>
+      <p>The Deformation view colours each point by its mechanical strain: the Green–Lagrange strain of the tetrahedra around it, which is the part of the deformation left once rotation is taken out. A cell that is only tumbling stays dark; pull it and the colour gathers where it stretches or is squeezed. The field is averaged onto the particles and carried to the surface by the same barycentric weights as the skin, so knife faces show it inside too.</p>
       <h3>Seeing inside</h3>
       <p>The skin and the organelles (nucleus, nucleolus, vacuoles, a cortical mitochondrial network, the septin ring) are separate meshes. Each vertex is pinned to a tetrahedron by barycentric weights, so they all wobble together. Every vertex also remembers its rest position. A knife face looks up the anatomy's distance fields at that position, so it shows an exact section through whatever organelle lies in the plane, membranes included.</p>
       <h3>Light through jelly</h3>

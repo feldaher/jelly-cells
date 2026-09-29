@@ -100,7 +100,7 @@ struct VOut {
     c = mix(c, F.mats[7].rgb * light, scar * 0.85);
   }
 
-  // Strain / stiffness views: colour the jelly (and its knife faces) by the field.
+  // Deformation view: colour the jelly (and its knife faces) by its strain.
   if (viewMode() > 0.5) {
     let fc = viridis(in.scalar);
     let lit = fc * (0.55 + 0.45 * max(dot(N, L), 0.0) * (0.6 + 0.4 * sh));

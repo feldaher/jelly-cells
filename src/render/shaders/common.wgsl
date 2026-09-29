@@ -14,7 +14,7 @@ struct Frame {
   mats: array<vec4f, 16>,
 };
 // palette: 0 absorb | 1 scatter (w density) | 2 background | 3 membrane (w strength)
-//          4 (refraction, emissive, gloss, view: 0 anatomy 1 strain 2 stiffness) | 5 ink.   mats[m] = colour of material m.
+//          4 (refraction, emissive, gloss, view: 0 anatomy 1 deformation) | 5 ink.   mats[m] = colour of material m.
 
 struct Cell { k: vec4f };                          // k = wall thickness, body part count
 struct Prim { h: vec4f, a: vec4f, b: vec4f };      // h = kind, material, R, r; a.w = op; b.w = blend

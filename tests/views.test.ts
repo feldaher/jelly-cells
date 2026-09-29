@@ -1,7 +1,7 @@
 import { loadFeature, describeFeature } from '@amiceli/vitest-cucumber';
 import { expect } from 'vitest';
 import { freshCell, simulate, bbox } from './helpers';
-import { tetStrain, nodalAverage, tetStiffness, viewScalars } from '../src/teach/fields';
+import { tetStrain, nodalAverage, deformationScalars } from '../src/teach/fields';
 import { startGrab } from '../src/physics/grab';
 import { defaultParams } from '../src/physics/params';
 import { axisAngleMat } from '../src/math/mat3';
@@ -14,7 +14,7 @@ describeFeature(feature, ({ Scenario }) => {
   const resting = (Given: (s: string, f: () => void) => void) =>
     Given('a yeast cell resting on the floor', () => { cell = freshCell(0); simulate([cell], 1); });
 
-  Scenario('An undeformed cell shows no strain, even when turned', ({ Given, When, Then }) => {
+  Scenario('An undeformed cell shows no deformation, even when turned', ({ Given, When, Then }) => {
     let strain: Float32Array;
     Given('a yeast cell in its rest shape', () => { cell = freshCell(0); });
     When('it is rotated rigidly and its strain is measured', () => {
@@ -28,7 +28,7 @@ describeFeature(feature, ({ Scenario }) => {
     Then("every tetrahedron's strain is zero", () => { for (const e of strain) expect(e).toBeLessThan(1e-4); });
   });
 
-  Scenario('Pulling shows up as strain where the cell is pulled', ({ Given, When, Then }) => {
+  Scenario('Pulling shows up as deformation where the cell is pulled', ({ Given, When, Then }) => {
     resting(Given);
     When('the mother is held and the bud is pulled away', () => {
       const P = cell.sim.pos, lo = bbox(cell).lo[0];
@@ -52,28 +52,11 @@ describeFeature(feature, ({ Scenario }) => {
     });
   });
 
-  Scenario('The stiffness view shows the wall stiffer than the cytoplasm', ({ Given, When, Then }) => {
-    let nodal: Float32Array;
-    resting(Given);
-    When('its stiffness field is computed', () => { nodal = nodalAverage(cell.sim, tetStiffness(cell.sim, defaultParams())); });
-    Then('surface particles are stiffer than the particles in the middle', () => {
-      // particles far from the rest centroid are on the wall; those near the mother's centre are cytoplasm
-      const R = cell.sim.restPos;
-      let outer = 0, no = 0, inner = 0, ni = 0;
-      for (let i = 0; i < nodal.length; i++) {
-        const r = Math.hypot(R[3 * i] / 2.5, R[3 * i + 1] / 2.3, R[3 * i + 2] / 2.3);
-        if (R[3 * i] < 1.5 && r > 0.95) { outer += nodal[i]; no++; }
-        if (r < 0.4) { inner += nodal[i]; ni++; }
-      }
-      expect(outer / no).toBeGreaterThan(inner / ni);
-    });
-  });
-
-  Scenario('View values stay between zero and one', ({ Given, When, Then }) => {
+  Scenario('Deformation values stay between zero and one', ({ Given, When, Then }) => {
     let values: Float32Array[] = [];
     resting(Given);
-    When('the strain and stiffness views are computed for its skin', () => {
-      values = [viewScalars(cell, 'strain', defaultParams()).slice(), viewScalars(cell, 'stiffness', defaultParams()).slice()];
+    When('the deformation view is computed for its skin', () => {
+      values = [deformationScalars(cell).slice()];
     });
     Then('every skin value lies between 0 and 1', () => {
       for (const v of values) { expect(v.length).toBe(cell.skin.tetId.length); for (const x of v) { expect(x).toBeGreaterThanOrEqual(0); expect(x).toBeLessThanOrEqual(1); } }

@@ -110,6 +110,8 @@ export interface CellType {
   build(seed?: number, stage?: number): Anatomy;
   /** Optional life stages a slider can step through (e.g. the yeast cell cycle). */
   stages?: Stage[];
+  /** What the stage slider is called, e.g. "Cell cycle" or "Injury response". */
+  stageLabel?: string;
   defaultStage?: number;
   labels(an: Anatomy): Label[];
   /** Materials listed in the key, with this cell type's names for them. */
@@ -173,12 +175,12 @@ export interface SkinMesh {
   material: Material;
   /** Rest-space normals from the SDF; when present, normals follow each tet's deformation exactly. */
   restNormal?: Float32Array;
-  /** Per-vertex value in [0, 1] shown by the strain / stiffness views (absent in the anatomy view). */
+  /** Per-vertex value in [0, 1] shown by the deformation view (absent in the anatomy view). */
   scalar?: Float32Array;
 }
 
-/** What the jelly is coloured by. */
-export type ViewMode = 'anatomy' | 'strain' | 'stiffness';
+/** What the jelly is coloured by: its anatomy, or how much it is deformed (mechanical strain). */
+export type ViewMode = 'anatomy' | 'deformation';
 
 /** A point in a cell's life that the anatomy can be built at (e.g. a cell-cycle phase). */
 export interface Stage {

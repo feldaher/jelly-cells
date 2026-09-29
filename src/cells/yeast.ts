@@ -224,6 +224,7 @@ export const yeast: CellType = {
   build: buildYeast,
   labels: yeastLabels,
   stages: STAGES,
+  stageLabel: 'Cell cycle',
   defaultStage: 2,
   key: [
     { material: Mat.Wall, name: 'Cell wall' }, { material: Mat.Cytoplasm, name: 'Cytoplasm' },
