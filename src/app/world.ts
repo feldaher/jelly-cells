@@ -1,6 +1,7 @@
 // The world: pieces, the fixed-rate simulation loop, the hand, the knife.
 
-import type { Anatomy, CellType, CellTypeId, CutChild, Label, Piece, Plane, SectionEntry, SimMesh, SkinMesh, Stats, Vec3 } from '../contracts';
+import type { Anatomy, CellType, CellTypeId, CutChild, Label, Piece, Plane, SectionEntry, SimMesh, SkinMesh, Stats, Vec3, ViewMode } from '../contracts';
+import { viewScalars } from '../teach/fields';
 import { anatomyOf, cellType } from '../cells';
 import { buildPiece } from '../mesh/piece';
 import { TetGrid, updateSkin } from '../mesh/surface';
@@ -31,6 +32,9 @@ export class World {
   labels: Label[] = [];
   params = paramsFor(cellType('yeast'));
   lastCut: CutReport | null = null;
+  /** Current life stage (index into type.stages). */
+  stage = 0;
+  view: ViewMode = 'anatomy';
   pieces: Piece[] = [];
   grab: GrabState | null = null;
   knife: Knife | null = null;
@@ -49,11 +53,12 @@ export class World {
     this.setCellType(id);
   }
 
-  /** Swaps in another cell type, keeping the firmness and damping settings. */
-  setCellType(id: CellTypeId) {
+  /** Swaps in another cell type (optionally at a stage), keeping the firmness and damping settings. */
+  setCellType(id: CellTypeId, stage?: number) {
     const { firmness, damping } = this.params;
     this.type = cellType(id);
-    this.an = anatomyOf(id);
+    this.stage = stage ?? this.type.defaultStage ?? 0;
+    this.an = anatomyOf(id, 7, this.stage);
     this.labels = this.type.labels(this.an);
     this.params = { ...paramsFor(this.type), firmness, damping };
     this.template = buildPiece(this.an, [], 0);
@@ -111,7 +116,14 @@ export class World {
     for (const p of this.pieces) {
       updateSkin(p.skin, p.sim);
       for (const o of p.organelles) updateSkin(o, p.sim);
+      if (this.view === 'anatomy') p.skin.scalar = undefined;
+      else viewScalars(p, this.view, this.params);
     }
+  }
+
+  setView(v: ViewMode) {
+    this.view = v;
+    this.refreshSkins();
   }
 
   /**
@@ -182,6 +194,7 @@ export class World {
     const req: CutRequest = {
       id,
       cellType: this.type.id,
+      stage: this.stage,
       umPerUnit: this.type.umPerUnit,
       seed: this.an.seed,
       jobs: jobs.map((j) => ({

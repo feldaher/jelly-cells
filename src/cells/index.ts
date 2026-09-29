@@ -16,10 +16,12 @@ export function cellType(id: CellTypeId): CellType {
 }
 
 const cache = new Map<string, Anatomy>();
-/** The anatomy of a cell type, built once per seed. */
-export function anatomyOf(id: CellTypeId, seed = 7): Anatomy {
-  const key = `${id}:${seed}`;
+/** The anatomy of a cell type at a stage, built once per seed. */
+export function anatomyOf(id: CellTypeId, seed = 7, stage?: number): Anatomy {
+  const t = cellType(id);
+  const st = stage ?? t.defaultStage ?? 0;
+  const key = `${id}:${seed}:${st}`;
   let an = cache.get(key);
-  if (!an) { an = cellType(id).build(seed); cache.set(key, an); }
+  if (!an) { an = t.build(seed, st); cache.set(key, an); }
   return an;
 }

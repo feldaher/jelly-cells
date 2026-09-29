@@ -65,6 +65,8 @@ export interface BodyPart {
 
 export interface Anatomy {
   cellType: CellTypeId;
+  /** Index into the cell type's stages (0 when it has none). */
+  stage: number;
   /** The outer body: parts are combined in order (the first one's op is ignored). */
   body: BodyPart[];
   /** Box that contains the body (sim units). */
@@ -105,7 +107,10 @@ export interface CellType {
   tagline: string[];
   /** How many µm one sim unit stands for. */
   umPerUnit: number;
-  build(seed?: number): Anatomy;
+  build(seed?: number, stage?: number): Anatomy;
+  /** Optional life stages a slider can step through (e.g. the yeast cell cycle). */
+  stages?: Stage[];
+  defaultStage?: number;
   labels(an: Anatomy): Label[];
   /** Materials listed in the key, with this cell type's names for them. */
   key: { material: Material; name: string }[];
@@ -168,6 +173,20 @@ export interface SkinMesh {
   material: Material;
   /** Rest-space normals from the SDF; when present, normals follow each tet's deformation exactly. */
   restNormal?: Float32Array;
+  /** Per-vertex value in [0, 1] shown by the strain / stiffness views (absent in the anatomy view). */
+  scalar?: Float32Array;
+}
+
+/** What the jelly is coloured by. */
+export type ViewMode = 'anatomy' | 'strain' | 'stiffness';
+
+/** A point in a cell's life that the anatomy can be built at (e.g. a cell-cycle phase). */
+export interface Stage {
+  /** Short name on the slider, e.g. "G1". */
+  name: string;
+  /** Title of the stage, e.g. "Unbudded". */
+  title: string;
+  blurb: string;
 }
 
 export interface Piece {

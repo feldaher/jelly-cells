@@ -4,7 +4,7 @@
 //   3. per piece, back to front: back-face depth → jelly front faces refracting the scene
 //   4. composite to the canvas (+ tet edges when "Show mesh" is on)
 
-import type { Anatomy, Piece, SkinMesh, Vec3 } from '../contracts';
+import type { Anatomy, Piece, SkinMesh, Vec3, ViewMode } from '../contracts';
 import { packAnatomyGPU } from '../anatomy/sdf';
 import { lookAt, mul, ortho, perspective, type M4 } from '../math/mat4';
 import { packPalette, type Variety } from './palette';
@@ -46,6 +46,7 @@ export interface FrameOptions {
   hidden: number;
   /** Cell-type cytoplasm absorption for brightfield. */
   absorb?: Vec3;
+  view: ViewMode;
 }
 
 interface GpuMesh {
@@ -177,10 +178,10 @@ export class Renderer {
     const mod = (code: string) => d.createShaderModule({ code });
     const common = commonWgsl + '\n' + shadowWgsl + '\n';
     const skinBuffers: GPUVertexBufferLayout[] = [
-      { arrayStride: 24, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }] },
+      { arrayStride: 28, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }, { shaderLocation: 3, offset: 24, format: 'float32' }] },
       { arrayStride: 16, attributes: [{ shaderLocation: 2, offset: 0, format: 'float32x4' }] },
     ];
-    const posOnly: GPUVertexBufferLayout[] = [{ arrayStride: 24, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] }];
+    const posOnly: GPUVertexBufferLayout[] = [{ arrayStride: 28, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] }];
     const layout = (...g: GPUBindGroupLayout[]) => d.createPipelineLayout({ bindGroupLayouts: g });
 
     const depthMod = mod(depthWgsl);
@@ -302,7 +303,7 @@ export class Renderer {
 
   private makeMesh(src: SkinMesh | WorldMesh, restW: (v: number) => number): GpuMesh {
     const d = this.device, n = src.pos.length / 3;
-    const dyn = d.createBuffer({ size: Math.max(24, n * 24), usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
+    const dyn = d.createBuffer({ size: Math.max(28, n * 28), usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST });
     const restData = new Float32Array(n * 4);
     if ('tetId' in src) {
       for (let v = 0; v < n; v++) { restData.set(src.restPos.subarray(3 * v, 3 * v + 3), 4 * v); restData[4 * v + 3] = restW(v); }
@@ -311,16 +312,18 @@ export class Renderer {
     d.queue.writeBuffer(rest, 0, restData);
     const idx = d.createBuffer({ size: Math.max(4, src.idx.byteLength), usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
     d.queue.writeBuffer(idx, 0, src.idx);
-    const m: GpuMesh = { dyn, rest, idx, count: src.idx.length, scratch: new Float32Array(n * 6), src };
+    const m: GpuMesh = { dyn, rest, idx, count: src.idx.length, scratch: new Float32Array(n * 7), src };
     this.uploadMesh(m);
     return m;
   }
 
   private uploadMesh(m: GpuMesh) {
     const { pos, normal } = m.src, s = m.scratch;
+    const scalar = 'scalar' in m.src ? m.src.scalar : undefined;
     for (let v = 0, n = pos.length / 3; v < n; v++) {
-      s[6 * v] = pos[3 * v]; s[6 * v + 1] = pos[3 * v + 1]; s[6 * v + 2] = pos[3 * v + 2];
-      s[6 * v + 3] = normal[3 * v]; s[6 * v + 4] = normal[3 * v + 1]; s[6 * v + 5] = normal[3 * v + 2];
+      s[7 * v] = pos[3 * v]; s[7 * v + 1] = pos[3 * v + 1]; s[7 * v + 2] = pos[3 * v + 2];
+      s[7 * v + 3] = normal[3 * v]; s[7 * v + 4] = normal[3 * v + 1]; s[7 * v + 5] = normal[3 * v + 2];
+      s[7 * v + 6] = scalar ? scalar[v] : 0;
     }
     this.device.queue.writeBuffer(m.dyn, 0, s);
   }
@@ -410,6 +413,7 @@ export class Renderer {
     f.set([proj[10], proj[14], 0.5, 200], 76);
     f.set([opt.time, this.primCount, opt.highlight, opt.hidden], 80);
     f.set(packPalette(opt.variety, opt.absorb), 84);
+    f[84 + 4 * 4 + 3] = opt.view === 'strain' ? 1 : opt.view === 'stiffness' ? 2 : 0;
     q.writeBuffer(this.frameBuf, 0, f);
     q.writeBuffer(this.camLight, 0, lightVP);
     q.writeBuffer(this.camFloor, 0, floorVP);

@@ -8,14 +8,15 @@ import { mergeReports, sectionReport } from '../teach/section';
 export interface CutRequest {
   id: number;
   cellType: CellTypeId;
+  stage: number;
   umPerUnit: number;
   seed: number;
   jobs: { parentPlanes: Plane[]; rest: Plane; parent: Pick<SimMesh, 'restPos' | 'tets' | 'restInv' | 'spacing'> }[];
 }
 
 self.onmessage = (e: MessageEvent<CutRequest>) => {
-  const { id, cellType, umPerUnit, seed, jobs } = e.data;
-  const an = anatomyOf(cellType, seed);
+  const { id, cellType, stage, umPerUnit, seed, jobs } = e.data;
+  const an = anatomyOf(cellType, seed, stage);
   let tmp = 0;
   const results = jobs.map((j) => buildChildren(an, j.parent, j.parentPlanes, j.rest, () => tmp++));
   const report = mergeReports(jobs.map((j) => sectionReport(an, j.parentPlanes, j.rest, umPerUnit)));

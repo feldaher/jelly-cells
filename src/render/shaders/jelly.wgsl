@@ -10,7 +10,7 @@
 @group(3) @binding(2) var sceneDepth: texture_depth_2d;
 @group(3) @binding(3) var backDepth: texture_depth_2d;
 
-struct VIn { @location(0) pos: vec3f, @location(1) nrm: vec3f, @location(2) rest: vec4f };
+struct VIn { @location(0) pos: vec3f, @location(1) nrm: vec3f, @location(2) rest: vec4f, @location(3) scalar: f32 };
 struct VOut {
   @builtin(position) clip: vec4f,
   @location(0) world: vec3f,
@@ -18,6 +18,7 @@ struct VOut {
   @location(2) rest: vec3f,
   @location(3) cut: f32,
   @location(4) viewZ: f32,
+  @location(5) scalar: f32,
 };
 
 @vertex fn vs(v: VIn) -> VOut {
@@ -25,6 +26,7 @@ struct VOut {
   o.clip = F.viewProj * vec4f(v.pos, 1.0);
   o.world = v.pos; o.nrm = v.nrm; o.rest = v.rest.xyz; o.cut = v.rest.w;
   o.viewZ = -(F.view * vec4f(v.pos, 1.0)).z;
+  o.scalar = v.scalar;
   return o;
 }
 
@@ -96,6 +98,13 @@ struct VOut {
     if (!isHidden(1.0)) { c = mix(c, F.mats[1].rgb * light, film * (1.0 - 0.6 * emissive)); }
     let scar = budScarAt(in.rest);
     c = mix(c, F.mats[7].rgb * light, scar * 0.85);
+  }
+
+  // Strain / stiffness views: colour the jelly (and its knife faces) by the field.
+  if (viewMode() > 0.5) {
+    let fc = viridis(in.scalar);
+    let lit = fc * (0.55 + 0.45 * max(dot(N, L), 0.0) * (0.6 + 0.4 * sh));
+    c = mix(c, lit, 0.88);
   }
 
   // Studio reflections and highlights.

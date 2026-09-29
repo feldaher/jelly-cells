@@ -18,6 +18,7 @@ function build(seed = 7): Anatomy {
   const rand = rng(seed);
   const an = finish({
     cellType: 'neuron',
+    stage: 0,
     body: [
       union(ell(SOMA, SOMA_R)),
       union(cone(HILLOCK.a, HILLOCK.b, 0.95, 0.46), 0.5),

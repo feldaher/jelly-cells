@@ -174,9 +174,14 @@ export class TeachUi {
     // keep clear of the control panel on wide screens
     const panel = document.getElementById('panel')!.getBoundingClientRect();
     const right = w > 900 ? Math.min(w, panel.left) - 10 : w - 8;
+    // and off the key under the title
+    const keyEl = document.querySelector('.key') as HTMLElement | null;
+    const key = keyEl && keyEl.offsetParent ? keyEl.getBoundingClientRect() : null;
     shown.forEach(({ e, a }, i) => {
       const b = boxes[i];
-      const bx = Math.min(Math.max(b.x, 8), right - b.w), by = Math.min(Math.max(b.y, 8), h - b.h - 8);
+      let bx = Math.min(Math.max(b.x, 8), right - b.w);
+      const by = Math.min(Math.max(b.y, 8), h - b.h - 8);
+      if (key && by < key.bottom && by + b.h > key.top && bx < key.right) bx = Math.min(key.right + 8, right - b.w);
       e.box.style.transform = `translate(${bx}px, ${by}px)`;
       e.dot.style.transform = `translate(${a.x}px, ${a.y}px)`;
       const ex = bx > a.x ? bx : bx + b.w;

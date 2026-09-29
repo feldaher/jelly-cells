@@ -1,5 +1,6 @@
 import './style.css';
-import type { CellTypeId, Vec3 } from './contracts';
+import type { CellTypeId, Vec3, ViewMode } from './contracts';
+import { STRAIN_FULL, STIFF_MAX, STIFF_MIN } from './teach/fields';
 import { CELL_TYPES } from './cells';
 import { TeachUi } from './ui/teach';
 import { World } from './app/world';
@@ -103,7 +104,7 @@ async function main() {
     renderer.render(world.pieces, c0, {
       variety, showMesh, time: now / 1000,
       knife: world.knife ? bladeMesh(world.knife) : null,
-      highlight: teach.highlight, hidden: teach.hidden, absorb: world.type.absorb,
+      highlight: teach.highlight, hidden: teach.hidden, absorb: world.type.absorb, view: world.view,
     });
     teach.update(renderer.viewProj, c0.eye, c0.target, canvas.clientWidth, canvas.clientHeight);
     if (frame++ % 6 === 0) updateStats(world);
@@ -133,9 +134,43 @@ function showType(world: World) {
   const c = world.centre();
   cam.target = [c[0], Math.min(3, Math.max(1.2, c[1])), c[2]];
   teach.setType(t, variety);
+  showStage(world);
   const url = new URL(location.href);
   url.searchParams.set('cell', t.id);
   history.replaceState(null, '', url);
+}
+
+/** The cell-cycle slider, for cell types that have stages. */
+function showStage(world: World) {
+  const stages = world.type.stages;
+  $('stage-group').hidden = !stages;
+  if (!stages) return;
+  const input = $<HTMLInputElement>('cycle');
+  input.max = String(stages.length - 1);
+  input.value = String(world.stage);
+  $('stage-ticks').innerHTML = stages.map((st, i) => `<span class="${i === world.stage ? 'on' : ''}">${st.name}</span>`).join('');
+  previewStage(world, world.stage);
+}
+
+function previewStage(world: World, i: number) {
+  const st = world.type.stages?.[i];
+  if (!st) return;
+  $('stage-title').textContent = st.title;
+  $('stage-blurb').textContent = st.blurb;
+}
+
+function showColorbar(view: ViewMode) {
+  const cb = $('colorbar');
+  cb.hidden = view === 'anatomy';
+  if (view === 'strain') {
+    $('cb-title').textContent = 'Strain (stretch or squeeze)';
+    $('cb-min').textContent = '0%';
+    $('cb-max').textContent = `${Math.round(STRAIN_FULL * 100)}%+`;
+  } else if (view === 'stiffness') {
+    $('cb-title').textContent = 'Stiffness vs cytoplasm';
+    $('cb-min').textContent = `×${STIFF_MIN}`;
+    $('cb-max').textContent = `×${STIFF_MAX}`;
+  }
 }
 
 function setupUi(world: World, renderer: Renderer) {
@@ -156,6 +191,34 @@ function setupUi(world: World, renderer: Renderer) {
   });
   showType(world);
   $('labels-btn').addEventListener('click', () => teach.toggleLabels());
+
+  const stageInput = $<HTMLInputElement>('cycle');
+  const setStage = async (i: number) => {
+    if (i === world.stage) return;
+    statusText.textContent = 'WebGPU · Building';
+    await new Promise((r) => setTimeout(r, 20));
+    world.setCellType(world.type.id, i);
+    renderer.setAnatomy(world.an);
+    teach.setType(world.type, variety);
+    showStage(world);
+    statusText.textContent = world.paused ? 'WebGPU · Paused' : 'WebGPU · Live';
+  };
+  stageInput.addEventListener('input', () => previewStage(world, Number(stageInput.value)));
+  stageInput.addEventListener('change', () => setStage(Number(stageInput.value)));
+  const stepStage = (d: number) => {
+    const n = world.type.stages?.length ?? 0;
+    if (n) setStage(Math.max(0, Math.min(n - 1, world.stage + d)));
+  };
+
+  document.querySelectorAll<HTMLButtonElement>('.view').forEach((b) => b.addEventListener('click', () => {
+    const v = b.dataset.view as ViewMode;
+    world.setView(v);
+    document.querySelectorAll<HTMLButtonElement>('.view').forEach((o) => {
+      o.classList.toggle('active', o === b);
+      o.setAttribute('aria-checked', String(o === b));
+    });
+    showColorbar(v);
+  }));
   document.querySelectorAll<HTMLButtonElement>('.tool').forEach((b) => b.addEventListener('click', () => {
     tool = b.dataset.tool as typeof tool;
     document.querySelectorAll<HTMLButtonElement>('.tool').forEach((o) => {
@@ -205,6 +268,8 @@ function setupUi(world: World, renderer: Renderer) {
     if (e.key === 'n') world.nudge();
     if (e.key === 'r') world.reset();
     if (e.key === 'l') teach.toggleLabels();
+    if (e.key === '[') stepStage(-1);
+    if (e.key === ']') stepStage(1);
     if (e.key === 'Escape') teach.closeCard();
   });
 }

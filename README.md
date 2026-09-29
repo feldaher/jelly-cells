@@ -1,4 +1,4 @@
-# Jelly Cells (Material Studies No. 010)
+# Jelly Cells (Biology Studies No. 010)
 
 Cells as soft bodies. Grab them, stretch them, give them a nudge, and cut them open with a knife to see what is inside. Five specimens are in the dropdown:
 
@@ -15,6 +15,8 @@ Teaching aids:
 - **Clickable key**: click to hide an organelle, shift-click to show only that one, hover to highlight it.
 - **"The cut passed through"**: after each cut, a report of what the blade crossed, with sizes and profile counts.
 - **Scale bar** in µm that follows the zoom.
+- **Cell-cycle slider** (yeast): G1 → S → G2 → anaphase → telophase. The bud grows, the nucleus migrates into the neck, stretches through it and splits, and the septin ring divides in two.
+- **Views**: *Anatomy*, *Strain* (Green–Lagrange strain, 0–30 %+, so you see where a pull or a squeeze goes) and *Stiffness* (each material's stiffness relative to cytoplasm, log scale). Both colour the knife faces too, so a cut shows the field inside.
 
 `?cell=neuron` (or `rbc`, `fibroblast`, `microglia`, `yeast`) opens a specific cell.
 
@@ -39,7 +41,7 @@ It needs a browser with WebGPU: current Chrome or Edge, Safari 18+, or Firefox w
 |---|---|
 | **Hand** | Drag the cell to pull it. Scroll or use a second finger while holding to twist. Drag empty floor to orbit, scroll to zoom. |
 | **Knife** | Draw a stroke across the cell. A vertical blade comes down along it and splits every piece it crosses. |
-| Keys | `H` hand · `K` knife · `N` nudge · `R` reset · `L` labels · `Esc` close card · `Space` pause |
+| Keys | `H` hand · `K` knife · `N` nudge · `R` reset · `L` labels · `[` `]` cell-cycle stage · `Esc` close card · `Space` pause |
 | `?debug` | Shows the physics step time in the status pill. |
 
 ## How it works

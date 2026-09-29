@@ -37,6 +37,7 @@ function build(seed = 7): Anatomy {
   }
   const an = finish({
     cellType: 'microglia',
+    stage: 0,
     body: [...body, ...secondaries],
     wallThickness: 0.08,
     cortexDepth: 0.2,

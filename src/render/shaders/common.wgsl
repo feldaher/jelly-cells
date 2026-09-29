@@ -14,7 +14,7 @@ struct Frame {
   mats: array<vec4f, 16>,
 };
 // palette: 0 absorb | 1 scatter (w density) | 2 background | 3 membrane (w strength)
-//          4 (refraction, emissive, gloss) | 5 ink.   mats[m] = colour of material m.
+//          4 (refraction, emissive, gloss, view: 0 anatomy 1 strain 2 stiffness) | 5 ink.   mats[m] = colour of material m.
 
 struct Cell { k: vec4f };                          // k = wall thickness, body part count
 struct Prim { h: vec4f, a: vec4f, b: vec4f };      // h = kind, material, R, r; a.w = op; b.w = blend
@@ -158,3 +158,19 @@ fn ggx(N: vec3f, V: vec3f, L: vec3f, rough: f32) -> f32 {
 }
 
 fn fresnel(cosT: f32, f0: f32) -> f32 { return f0 + (1.0 - f0) * pow(1.0 - clamp(cosT, 0.0, 1.0), 5.0); }
+
+fn viewMode() -> f32 { return F.palette[4].w; }
+
+/** Viridis (Mattz's polynomial fit), returned in linear colour. */
+fn viridis(t0: f32) -> vec3f {
+  let t = clamp(t0, 0.0, 1.0);
+  let c0 = vec3f(0.2777273272234177, 0.005407344544966578, 0.3340998053353061);
+  let c1 = vec3f(0.1050930431085774, 1.404613529898575, 1.384590162594685);
+  let c2 = vec3f(-0.3308618287255563, 0.214847559468213, 0.09509516302823659);
+  let c3 = vec3f(-4.634230498983486, -5.799100973351585, -19.33244095627987);
+  let c4 = vec3f(6.228269936347081, 14.17993336680509, 56.69055260068105);
+  let c5 = vec3f(4.776384997670288, -13.74514537774601, -65.35303263337234);
+  let c6 = vec3f(-5.435455855934631, 4.645852612178535, 26.3124352495832);
+  let srgb = c0 + t * (c1 + t * (c2 + t * (c3 + t * (c4 + t * (c5 + t * c6)))));
+  return pow(clamp(srgb, vec3f(0.0), vec3f(1.0)), vec3f(2.2));
+}

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Jelly Cells — Material Studies No. 010</title>
+  <title>Jelly Cells — Biology Studies No. 010</title>
   <meta name="description" content="Cells as soft bodies you can grab, wobble and cut open: budding yeast, a red blood cell, a fibroblast, microglia and a neuron, with labels and sections of what is inside. XPBD tetrahedra and WebGPU." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -17,7 +17,7 @@
   <svg id="stroke" aria-hidden="true"><polyline points="" /></svg>
 
   <header class="title">
-    <p class="eyebrow">Material Studies / No. 010</p>
+    <p class="eyebrow">Biology Studies / No. 010</p>
     <h1><span id="title1">Budding</span><span class="indent" id="title2">Yeast.</span></h1>
     <p class="tagline" id="tagline">A mother and her bud.<br />A little wobble.<br />Cut it open to look inside.</p>
     <div class="key">
@@ -35,6 +35,12 @@
     <div class="group">
       <label class="label" for="cell-type">Cell</label>
       <div class="select"><select id="cell-type"></select></div>
+      <div class="stage" id="stage-group" hidden>
+        <div class="slider-head"><span class="label">Cell cycle</span><output id="stage-title"></output></div>
+        <input type="range" id="cycle" min="0" max="4" step="1" value="2" aria-label="Cell-cycle stage" />
+        <div class="ticks" id="stage-ticks"></div>
+        <p class="stage-blurb" id="stage-blurb"></p>
+      </div>
     </div>
 
     <div class="group">
@@ -54,6 +60,15 @@
     <div class="group">
       <span class="label">Variety</span>
       <div class="swatches" id="swatches"></div>
+    </div>
+
+    <div class="group">
+      <span class="label">View</span>
+      <div class="seg seg3" role="radiogroup" aria-label="View">
+        <button class="view active" data-view="anatomy" role="radio" aria-checked="true">Anatomy</button>
+        <button class="view" data-view="strain" role="radio" aria-checked="false">Strain</button>
+        <button class="view" data-view="stiffness" role="radio" aria-checked="false">Stiffness</button>
+      </div>
     </div>
 
     <div class="group">
@@ -80,11 +95,6 @@
   </aside>
 
   <section class="readout">
-    <div class="cut-report" id="cut-report" hidden>
-      <div class="cut-head"><span class="label">The cut passed through</span><button id="cut-close" class="x" aria-label="Close">×</button></div>
-      <ul id="cut-list"></ul>
-      <p class="cut-area" id="cut-area"></p>
-    </div>
     <p class="help" id="help"></p>
     <div class="stats">
       <div><span class="label">Mass</span><b id="s-mass">—</b><i>pg</i></div>
@@ -96,12 +106,23 @@
   </section>
 
   <div class="scalebar" id="scalebar" aria-label="Scale bar"><i></i><span></span></div>
+  <div class="colorbar" id="colorbar" hidden>
+    <span class="label" id="cb-title">Strain</span>
+    <div class="cb-row"><span id="cb-min"></span><i></i><span id="cb-max"></span></div>
+  </div>
 
+  <div class="side-stack">
   <aside class="card" id="card" hidden>
     <div class="card-head"><h2 id="card-name"></h2><button id="card-close" class="x" aria-label="Close">×</button></div>
     <p class="card-size" id="card-size"></p>
     <p id="card-blurb"></p>
   </aside>
+  <div class="cut-report" id="cut-report" hidden>
+      <div class="cut-head"><span class="label">The cut passed through</span><button id="cut-close" class="x" aria-label="Close">×</button></div>
+      <ul id="cut-list"></ul>
+      <p class="cut-area" id="cut-area"></p>
+    </div>
+  </div>
 
   <details class="inside">
     <summary>Inside the experiment <span>+</span></summary>
@@ -113,6 +134,8 @@
       <p>Every tetrahedron knows what it sits in. Wall and cortex, the nucleus and stress fibres are stiffer than cytoplasm; the yeast wall is four times stiffer. Damping acts only on relative velocity along mesh edges, so the cell still falls and tumbles freely while its wobble dies away.</p>
       <h3>Cutting</h3>
       <p>Your stroke fixes a vertical blade plane. For each piece it crosses, the piece's current pose is fitted with a best rotation, and the plane is carried back into rest space. Each side becomes a new piece: the cell's signed distance field intersected with its half-spaces, rebuilt as a fresh tetrahedral mesh. The knife then presses a groove, breaks through, and hands every new particle the position and speed of the flesh it came from. The blade wedges the faces apart on its way down.</p>
+      <h3>Strain and stiffness</h3>
+      <p>The Strain view colours each point by the Green–Lagrange strain of the tetrahedra around it, the part of the deformation left once rotation is taken out. A cell that is only tumbling stays dark; pull it and the colour gathers where it stretches. The Stiffness view shows each material's stiffness relative to cytoplasm. Both fields are averaged onto the particles and carried to the surface by the same barycentric weights as the skin, so knife faces show them inside too.</p>
       <h3>Seeing inside</h3>
       <p>The skin and the organelles (nucleus, nucleolus, vacuoles, a cortical mitochondrial network, the septin ring) are separate meshes. Each vertex is pinned to a tetrahedron by barycentric weights, so they all wobble together. Every vertex also remembers its rest position. A knife face looks up the anatomy's distance fields at that position, so it shows an exact section through whatever organelle lies in the plane, membranes included.</p>
       <h3>Light through jelly</h3>

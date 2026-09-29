@@ -39,6 +39,8 @@ fn clippedAway(rest: vec3f) -> bool {
   c = mix(c, glow, emissive);
   // vacuoles are fluid-filled and glassy
   if (abs(in.mat - 4.0) < 0.5) { c = mix(c, studio(reflect(-V, N)), fresnel(dot(N, V), 0.04) * (1.0 - emissive)); }
+  // field views ghost the organelles so the jelly's colours read clearly
+  if (viewMode() > 0.5) { c = mix(c, F.palette[2].rgb, 0.7); }
   // teaching highlight: the named organelle glows, everything else recedes
   let hl = highlight();
   if (hl > -0.5) {

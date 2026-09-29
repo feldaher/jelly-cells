@@ -11,6 +11,7 @@ const RIM_R = 2.1, RIM_r = 0.95;
 function build(seed = 7): Anatomy {
   return finish({
     cellType: 'rbc',
+    stage: 0,
     body: [
       union(torus([0, Y, 0], [0, 1, 0], RIM_R, RIM_r)),
       union(ell([0, Y, 0], [2.4, 0.42, 2.4]), 0.6),

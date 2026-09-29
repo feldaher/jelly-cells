@@ -11,6 +11,7 @@ function build(seed = 7): Anatomy {
   const rand = rng(seed);
   const an = finish({
     cellType: 'fibroblast',
+    stage: 0,
     body: [
       union(ell([0, 0.45, 0], [4.6, 0.45, 2.4])),
       union(ell([0.3, 0.75, 0], [1.9, 0.75, 1.4]), 0.8),
