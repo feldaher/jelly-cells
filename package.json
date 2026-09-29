@@ -11,7 +11,7 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "@amiceli/vitest-cucumber": "^8.0.0",
+    "@amiceli/vitest-cucumber": "^5.2.1",
     "@webgpu/types": "^0.1.74",
     "typescript": "^7.0.2",
     "vite": "^7.3.6",
