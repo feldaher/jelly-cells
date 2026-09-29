@@ -11,7 +11,7 @@ Cells as soft bodies. Grab them, stretch them, give them a nudge, and cut them o
 | **Neuron** | soma, axon hillock, axon + terminal, dendrites, nucleolus, Nissl bodies, mitochondria |
 
 Teaching aids:
-- **Labels** that ride with the jelly; toggle them with the Labels button or `L`. Click one for a card with its real size and what it does.
+- **Labels** that ride with the jelly; toggle them with the Labels button or `L`. Click one for a card with its real size, what it does and a link to the Wikipedia article (`src/teach/wiki.ts`).
 - **Clickable key**: click to hide an organelle, shift-click to show only that one, hover to highlight it.
 - **"The cut passed through"**: after each cut, a report of what the blade crossed, with sizes and profile counts.
 - **Scale bar** in µm that follows the zoom.
@@ -53,7 +53,7 @@ It needs a browser with WebGPU: current Chrome or Edge, Safari 18+, or Firefox w
 
 - **Cell types** (`src/cells`): each is a `CellType` (see `src/contracts.ts`). It provides a body (ellipsoids, tori and tapered tubes combined by smooth union or subtraction), organelles, labels, key, stiffness per material, camera and µm-per-unit scale.
 - **Anatomy** (`src/anatomy`): the signed distance fields. The same functions exist in TypeScript and WGSL (`render/shaders/common.wgsl`).
-- **Teaching** (`src/teach`, `src/ui/teach.ts`): section measurement, scale bar, label layout and the overlay UI.
+- **Teaching** (`src/teach`, `src/ui/teach.ts`): section measurement, scale bar, label layout, Wikipedia links and the overlay UI.
 - **Mesh** (`src/mesh`): a BCC tetrahedral lattice clipped to the piece's SDF, with boundary nodes snapped onto the surface. Each tet takes the material at its centroid. The render skin is a surface-nets isosurface; organelles are analytic meshes. Both are embedded in the tets by barycentric weights.
 - **Physics** (`src/physics`): XPBD at a fixed 60 Hz step with 12 substeps. Each tet has a co-rotational shape constraint and a volume constraint on either side of it, and its stiffness is scaled by material (wall ×4, nucleus ×2, vacuole ×0.7). The rest are edge-relative damping, floor contact with friction, a soft grab, and particle contact between pieces.
 - **Cutting** (`src/cut`): the stroke defines a vertical world plane. It is carried into each piece's rest space through a best-fit rotation. Each side becomes a new piece (the SDF ∩ its half-spaces), built in a Web Worker while the knife presses its groove. The new pieces then inherit position and velocity from the flesh they came from.

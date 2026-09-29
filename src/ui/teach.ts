@@ -5,6 +5,7 @@ import { Mat, type CellType, type Label, type Material, type Vec3 } from '../con
 import type { World } from '../app/world';
 import { layoutLabels } from '../teach/labels';
 import { scaleBar } from '../teach/scale';
+import { wikiUrl } from '../teach/wiki';
 import { notableEntries } from '../teach/section';
 import { materialHex, type Variety } from '../render/palette';
 import type { M4 } from '../math/mat4';
@@ -96,6 +97,9 @@ export class TeachUi {
     $('card-name').textContent = l.name;
     $('card-size').textContent = l.size;
     $('card-blurb').textContent = l.blurb;
+    const wiki = $<HTMLAnchorElement>('card-wiki'), url = wikiUrl(l.name);
+    wiki.hidden = !url;
+    if (url) { wiki.href = url; wiki.title = decodeURIComponent(url.split('/wiki/')[1]).replace(/_/g, ' ') + ' on Wikipedia'; }
     $('card').style.setProperty('--c', this.colorOf(l));
     $('card').hidden = false;
     this.els.forEach((e) => e.box.classList.toggle('pinned', e.label === l));

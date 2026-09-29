@@ -133,6 +133,9 @@ select option { font: 14px var(--sans); color: #1d1b19; background: #fff; }
 .card h2 { margin: 0; font: italic 400 24px/1.1 var(--serif); }
 .card-size { margin: 4px 0 8px; font: 11px var(--mono); color: var(--muted); letter-spacing: 0.04em; }
 .card p { margin: 0; font-size: 12.5px; line-height: 1.55; }
+.card-wiki { display: inline-block; margin-top: 10px; font: 11px var(--mono); letter-spacing: 0.04em; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--c); padding-bottom: 1px; }
+.card-wiki:hover { border-bottom-width: 2px; }
+.card-wiki[hidden] { display: none; }
 .x { background: none; border: 0; color: var(--muted); font: 300 20px/1 var(--sans); cursor: pointer; padding: 0 2px; }
 .x:hover { color: var(--ink); }
 

@@ -28,3 +28,16 @@ Feature: Teaching aids
     Given twelve labels anchored close together
     When the labels are laid out
     Then no two label boxes overlap
+
+  Scenario Outline: Every label links to Wikipedia
+    Given the <cell> cell type
+    When its labels are listed at every stage
+    Then each label links to an English Wikipedia article
+
+    Examples:
+      | cell       |
+      | yeast      |
+      | rbc        |
+      | fibroblast |
+      | microglia  |
+      | neuron     |

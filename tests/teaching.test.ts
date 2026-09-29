@@ -4,11 +4,12 @@ import { cellType } from '../src/cells';
 import { sectionReport } from '../src/teach/section';
 import { scaleBar } from '../src/teach/scale';
 import { layoutLabels, type Box } from '../src/teach/labels';
+import { wikiUrl } from '../src/teach/wiki';
 import { Mat, type Anatomy, type CellType, type SectionEntry } from '../src/contracts';
 
 const feature = await loadFeature('features/teaching.feature');
 
-describeFeature(feature, ({ Scenario }) => {
+describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
   let ct: CellType;
   let an: Anatomy;
   let report: SectionEntry[];
@@ -73,6 +74,19 @@ describeFeature(feature, ({ Scenario }) => {
         const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
         expect(overlap).toBe(false);
       }
+    });
+  });
+
+  ScenarioOutline('Every label links to Wikipedia', ({ Given, When, Then }, v) => {
+    let names: string[] = [];
+    Given('the <cell> cell type', () => { ct = cellType(v.cell); });
+    When('its labels are listed at every stage', () => {
+      const stages = ct.stages?.length ?? 1;
+      for (let s = 0; s < stages; s++) names.push(...ct.labels(ct.build(undefined, s)).map((l) => l.name));
+      names = [...new Set(names)];
+    });
+    Then('each label links to an English Wikipedia article', () => {
+      for (const name of names) expect(wikiUrl(name), name).toMatch(/^https:\/\/en\.wikipedia\.org\/wiki\/[^\s]+$/);
     });
   });
 });
