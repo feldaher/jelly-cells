@@ -1,4 +1,4 @@
-import { Mat, MATERIAL_COUNT, type SimParams } from '../contracts';
+import { Mat, MATERIAL_COUNT, type CellType, type SimParams } from '../contracts';
 
 /**
  * Illustrative dynamics: the cell is simulated as if 1 µm were 3 cm of gelatin
@@ -20,6 +20,14 @@ export function defaultParams(): SimParams {
   materialStiffness[Mat.Septin] = 3;
   materialStiffness[Mat.BudScar] = 4;
   return { firmness: 0.4, damping: 0.45, substeps: 12, gravity: GRAVITY, friction: 0.7, materialStiffness };
+}
+
+/** Default parameters with a cell type's material stiffnesses. */
+export function paramsFor(ct: CellType): SimParams {
+  const p = defaultParams();
+  p.materialStiffness = new Array(MATERIAL_COUNT).fill(1);
+  for (const [m, k] of Object.entries(ct.stiffness)) p.materialStiffness[Number(m)] = k!;
+  return p;
 }
 
 /** Young's modulus for a firmness in [0, 1]: a factor 10 either side of the default. */

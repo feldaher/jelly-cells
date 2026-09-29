@@ -1,10 +1,12 @@
 // The world: pieces, the fixed-rate simulation loop, the hand, the knife.
 
-import type { Anatomy, CutChild, Piece, Plane, SimMesh, SkinMesh, Stats, Vec3 } from '../contracts';
-import { defaultAnatomy } from '../anatomy/anatomy';
+import type { Anatomy, CellType, CellTypeId, CutChild, Label, Piece, Plane, SectionEntry, SimMesh, SkinMesh, Stats, Vec3 } from '../contracts';
+import { anatomyOf, cellType } from '../cells';
 import { buildPiece } from '../mesh/piece';
-import { updateSkin } from '../mesh/surface';
-import { defaultParams, UNIT_CM } from '../physics/params';
+import { TetGrid, updateSkin } from '../mesh/surface';
+import { paramsFor, UNIT_CM } from '../physics/params';
+import { pieceSdf } from '../anatomy/sdf';
+import { mergeReports, sectionReport } from '../teach/section';
 import { step } from '../physics/xpbd';
 import type { GrabState } from '../physics/grab';
 import { currentVolume, restVolume } from '../physics/metrics';
@@ -14,12 +16,21 @@ import { advanceKnife, assignSides, knifeConstraint, startKnife, type Knife } fr
 
 const DT = 1 / 60;
 export const MAX_PIECES = 12;
-/** Wet mass density of a yeast cell, pg/µm³. */
+/** Wet mass density of a cell, pg/µm³. */
 const CELL_DENSITY = 1.1;
 
+export interface CutReport {
+  entries: SectionEntry[];
+  /** Increments with every cut, so the UI knows when to show a new report. */
+  serial: number;
+}
+
 export class World {
-  an: Anatomy = defaultAnatomy();
-  params = defaultParams();
+  type!: CellType;
+  an!: Anatomy;
+  labels: Label[] = [];
+  params = paramsFor(cellType('yeast'));
+  lastCut: CutReport | null = null;
   pieces: Piece[] = [];
   grab: GrabState | null = null;
   knife: Knife | null = null;
@@ -34,8 +45,19 @@ export class World {
   /** Last step cost in ms (for the dev overlay). */
   stepMs = 0;
 
-  constructor() {
+  constructor(id: CellTypeId = 'yeast') {
+    this.setCellType(id);
+  }
+
+  /** Swaps in another cell type, keeping the firmness and damping settings. */
+  setCellType(id: CellTypeId) {
+    const { firmness, damping } = this.params;
+    this.type = cellType(id);
+    this.an = anatomyOf(id);
+    this.labels = this.type.labels(this.an);
+    this.params = { ...paramsFor(this.type), firmness, damping };
     this.template = buildPiece(this.an, [], 0);
+    this.lastCut = null;
     this.reset();
   }
 
@@ -153,11 +175,14 @@ export class World {
     const worker = this.worker();
     if (!worker) {
       finish(jobs.map((j) => buildChildren(this.an, j.parent.sim, j.parent.planes, j.rest, () => 0)));
+      this.reportCut(mergeReports(jobs.map((j) => sectionReport(this.an, j.parent.planes, j.rest, this.type.umPerUnit))));
       return;
     }
     const id = ++this.requestId;
     const req: CutRequest = {
       id,
+      cellType: this.type.id,
+      umPerUnit: this.type.umPerUnit,
       seed: this.an.seed,
       jobs: jobs.map((j) => ({
         parentPlanes: j.parent.planes,
@@ -165,13 +190,55 @@ export class World {
         parent: { restPos: j.parent.sim.restPos, tets: j.parent.sim.tets, restInv: j.parent.sim.restInv, spacing: j.parent.sim.spacing },
       })),
     };
-    const onMessage = (e: MessageEvent<{ id: number; results: CutChild[][] }>) => {
+    const onMessage = (e: MessageEvent<{ id: number; results: CutChild[][]; report: SectionEntry[] }>) => {
       if (e.data.id !== id) return;
       worker.removeEventListener('message', onMessage);
       finish(e.data.results);
+      if (this.knife === knife) this.reportCut(e.data.report);
     };
     worker.addEventListener('message', onMessage);
     worker.postMessage(req);
+  }
+
+  private cutSerial = 0;
+  private reportCut(entries: SectionEntry[]) {
+    this.lastCut = { entries, serial: ++this.cutSerial };
+  }
+
+  private anchorCache = new WeakMap<Piece, { label: Label; tet: number; bary: Float64Array }[]>();
+  /**
+   * World positions of the teaching labels. Each anchor rides in whichever piece
+   * contains it; anchors in a sliver too thin to hold them are skipped.
+   */
+  labelPositions(): { label: Label; pos: Vec3 }[] {
+    const out: { label: Label; pos: Vec3 }[] = [];
+    for (const p of this.pieces) {
+      let emb = this.anchorCache.get(p);
+      if (!emb) {
+        emb = [];
+        const grid = new TetGrid(p.sim);
+        for (const label of this.labels) {
+          const a = label.anchor;
+          if (pieceSdf(this.an, p.planes, a[0], a[1], a[2]) >= 0) continue;
+          const { tet, minBary } = grid.locate(a[0], a[1], a[2]);
+          if (tet < 0 || minBary < -0.5) continue;
+          const bary = new Float64Array(4);
+          grid.bary(tet, a[0], a[1], a[2], bary);
+          emb.push({ label, tet, bary });
+        }
+        this.anchorCache.set(p, emb);
+      }
+      const P = p.sim.pos, T = p.sim.tets;
+      for (const { label, tet, bary } of emb) {
+        const pos: Vec3 = [0, 0, 0];
+        for (let j = 0; j < 4; j++) {
+          const i = 3 * T[4 * tet + j];
+          pos[0] += bary[j] * P[i]; pos[1] += bary[j] * P[i + 1]; pos[2] += bary[j] * P[i + 2];
+        }
+        out.push({ label, pos });
+      }
+    }
+    return out;
   }
 
   private cutWorker: Worker | null | undefined;
@@ -205,16 +272,14 @@ export class World {
     }
   }
 
+  /** Middle of the box around every piece (what the camera frames). */
   centre(): number[] {
-    const c = [0, 0, 0];
-    let n = 0;
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
     for (const p of this.pieces) {
-      const m = centre(p.sim.pos);
-      const w = p.sim.invMass.length;
-      for (let k = 0; k < 3; k++) c[k] += m[k] * w;
-      n += w;
+      const P = p.sim.pos;
+      for (let i = 0; i < P.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], P[i + k]); hi[k] = Math.max(hi[k], P[i + k]); }
     }
-    return c.map((x) => x / Math.max(1, n));
+    return lo.map((l, k) => (l + hi[k]) / 2);
   }
 
   stats(): Stats {
@@ -232,7 +297,7 @@ export class World {
     const massScale = UNIT_CM ** 3 * 1.1e-3; // kg per unit³
     const velScale = UNIT_CM * 1e-2; // m/s per unit/s
     return {
-      massPg: this.restTotal * CELL_DENSITY,
+      massPg: this.restTotal * this.type.umPerUnit ** 3 * CELL_DENSITY,
       volumePct: (100 * cur) / rest,
       kineticMicroJ: ke * massScale * velScale ** 2 * 1e6,
       pieces: this.pieces.length,

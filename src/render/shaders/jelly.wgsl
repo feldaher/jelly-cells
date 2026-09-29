@@ -35,7 +35,7 @@ struct VOut {
   let px = vec2i(in.clip.xy);
   let uv = in.clip.xy * F.screen.zw;
   let isCut = in.cut > 0.5;
-  let emissive = F.palette[11].y;
+  let emissive = F.palette[4].y;
 
   // Thickness of jelly behind this point, stopping at anything opaque inside it.
   let zBack = linearDepth(textureLoad(backDepth, px, 0));
@@ -45,7 +45,8 @@ struct VOut {
 
   // Refraction: bend the view of the scene behind by the surface normal.
   let nView = (F.view * vec4f(N, 0.0)).xyz;
-  var ruv = uv - nView.xy * vec2f(1.0, -1.0) * F.palette[11].x * tRef;
+  // offset shrinks with distance so thin processes do not act as magnifying lenses
+  var ruv = uv - nView.xy * vec2f(1.0, -1.0) * F.palette[4].x * tRef * (9.0 / max(in.viewZ, 1.0));
   ruv = clamp(ruv, vec2f(0.001), vec2f(0.999));
   // don't pull in things that sit in front of the jelly (the knife)
   let rpx = vec2i(ruv * F.screen.xy);
@@ -76,10 +77,14 @@ struct VOut {
       var opac = 0.9;
       if (abs(m - 4.0) < 0.5) { opac = 0.55; }      // vacuole sap is clear-ish
       if (abs(m - 1.0) < 0.5) { opac = 0.8; }
-      let lit = mix(base * diff, base * 1.25, emissive);
+      var lit = mix(base * diff, base * 1.25, emissive);
+      let hl = highlight();
+      if (hl > -0.5) {
+        if (abs(m - hl) < 0.5) { lit = lit * 1.2 + base * 0.25; opac = 1.0; } else { opac *= 0.3; }
+      }
       c = mix(c, lit, opac);
     }
-    let mem = F.palette[10];
+    let mem = F.palette[3];
     let line = 1.0 - smoothstep(0.012, 0.035, s.y);
     c = mix(c, mem.rgb, line * mem.w);
     rough = 0.08;
@@ -88,15 +93,15 @@ struct VOut {
     // The wall is a thin milky film: strongest at grazing angles.
     let nv = max(dot(N, V), 0.0);
     let film = 0.12 + 0.55 * pow(1.0 - nv, 2.0);
-    c = mix(c, F.palette[2].rgb * light, film * (1.0 - 0.6 * emissive));
+    if (!isHidden(1.0)) { c = mix(c, F.mats[1].rgb * light, film * (1.0 - 0.6 * emissive)); }
     let scar = budScarAt(in.rest);
-    c = mix(c, F.palette[8].rgb * light, scar * 0.85);
+    c = mix(c, F.mats[7].rgb * light, scar * 0.85);
   }
 
   // Studio reflections and highlights.
   let nv = max(dot(N, V), 0.0);
   let fr = fresnel(nv, f0);
-  c = mix(c, studio(reflect(-V, N)), fr * F.palette[11].z);
+  c = mix(c, studio(reflect(-V, N)), fr * F.palette[4].z);
   c += vec3f(1.0, 0.98, 0.95) * ggx(N, V, L, rough) * 0.9 * sh;
   let fill = normalize(vec3f(0.7, 0.4, -0.6));
   c += vec3f(0.8, 0.85, 0.95) * ggx(N, V, fill, rough + 0.1) * 0.25;

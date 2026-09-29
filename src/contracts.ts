@@ -1,7 +1,8 @@
 // Shared shapes for every layer of the simulation. This file is the contract:
 // geometry, physics, cutting and rendering all agree on these types and nothing else.
 //
-// Units: 1 sim unit = 1 µm of cell. World is y-up, the floor is the plane y = 0.
+// Units: sim units; each cell type says how many µm one unit stands for (`umPerUnit`).
+// World is y-up, the floor is the plane y = 0.
 
 export type Vec3 = [number, number, number];
 
@@ -15,12 +16,16 @@ export const Mat = {
   Mitochondrion: 5,
   Septin: 6,
   BudScar: 7,
+  Actin: 8,
+  Adhesion: 9,
+  Lysosome: 10,
+  ER: 11,
 } as const;
 export type Material = (typeof Mat)[keyof typeof Mat];
-export const MATERIAL_COUNT = 8;
+export const MATERIAL_COUNT = 12;
 
 /** Primitive kinds. The numeric values are shared with the WGSL shaders. */
-export const Prim = { Ellipsoid: 0, Capsule: 1, Torus: 2 } as const;
+export const Prim = { Ellipsoid: 0, Capsule: 1, Torus: 2, Cone: 3 } as const;
 export type PrimKind = (typeof Prim)[keyof typeof Prim];
 
 /**
@@ -28,6 +33,7 @@ export type PrimKind = (typeof Prim)[keyof typeof Prim];
  *  Ellipsoid: a = centre, b = radii
  *  Capsule:   a = start,  b = end, r = radius
  *  Torus:     a = centre, b = unit axis, R = major radius, r = minor radius
+ *  Cone:      a = start,  b = end, R = radius at a, r = radius at b (rounded ends)
  */
 export interface Primitive {
   kind: PrimKind;
@@ -38,7 +44,10 @@ export interface Primitive {
   r: number;
 }
 
-/** Floats per primitive in the packed GPU buffer: [kind, material, R, r, a.xyz, pad, b.xyz, pad]. */
+/**
+ * Floats per primitive in the packed GPU buffer: [kind, material, R, r, a.xyz, op, b.xyz, blend].
+ * Body parts come first, then organelles.
+ */
 export const PRIM_STRIDE = 12;
 
 export interface Ellipsoid {
@@ -46,18 +55,78 @@ export interface Ellipsoid {
   radii: Vec3;
 }
 
+/** One term of the body SDF, combined in order with the running result. */
+export interface BodyPart {
+  prim: Primitive;
+  op: 'union' | 'subtract';
+  /** Smooth blend radius (sim units); 0 = hard. */
+  blend: number;
+}
+
 export interface Anatomy {
-  mother: Ellipsoid;
-  bud: Ellipsoid;
-  /** Smooth-union radius joining mother and bud (µm). */
-  neckBlend: number;
-  /** Cell wall thickness used for rendering sections (µm). */
+  cellType: CellTypeId;
+  /** The outer body: parts are combined in order (the first one's op is ignored). */
+  body: BodyPart[];
+  /** Box that contains the body (sim units). */
+  bounds: { lo: Vec3; hi: Vec3 };
+  /** Cell wall / cortex thickness drawn on knife faces (sim units). */
   wallThickness: number;
+  /** Depth below the surface whose tets count as wall/cortex in the simulation. */
+  cortexDepth: number;
+  /** Lattice spacing limits for the tet mesh. */
+  mesh: { minSpacing: number; maxSpacing: number; minParticles: number; skinGrid: number };
   /** Organelles in paint priority order: earlier entries win where they overlap. */
   organelles: Primitive[];
-  /** Mitochondrial tubules as polylines (their capsules are also in `organelles`). */
-  tubules: { points: Vec3[]; radius: number }[];
+  /** Tubular organelles as polylines (their capsules are also in `organelles`). */
+  tubules: { points: Vec3[]; radius: number; material: Material }[];
   seed: number;
+}
+
+export type CellTypeId = 'yeast' | 'rbc' | 'fibroblast' | 'microglia' | 'neuron';
+
+/** A teaching label pinned to a point inside the cell. */
+export interface Label {
+  id: string;
+  name: string;
+  /** Rest-space anchor; it rides along with the jelly. */
+  anchor: Vec3;
+  /** The material it names, for highlighting (omit for regions such as "axon"). */
+  material?: Material;
+  /** Real size, e.g. "≈ 2 µm across". */
+  size: string;
+  blurb: string;
+}
+
+export interface CellType {
+  id: CellTypeId;
+  name: string;
+  /** Two display lines of the title, e.g. ["Budding", "Yeast."]. */
+  title: [string, string];
+  tagline: string[];
+  /** How many µm one sim unit stands for. */
+  umPerUnit: number;
+  build(seed?: number): Anatomy;
+  labels(an: Anatomy): Label[];
+  /** Materials listed in the key, with this cell type's names for them. */
+  key: { material: Material; name: string }[];
+  /** Stiffness multipliers per material (missing = 1). */
+  stiffness: Partial<Record<Material, number>>;
+  /** Brightfield cytoplasm absorption override (e.g. haemoglobin red). */
+  absorb?: Vec3;
+  camera: { dist: number; yaw: number; pitch: number };
+  help: string;
+  about: string;
+}
+
+/** One organelle type met by a knife cut. */
+export interface SectionEntry {
+  material: Material;
+  /** Section area in µm². */
+  areaUm2: number;
+  /** Equivalent diameter of the largest profile, µm. */
+  widthUm: number;
+  /** Number of separate profiles. */
+  count: number;
 }
 
 /** Half-space n·x ≤ d is kept. n is unit length. */

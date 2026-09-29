@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Yeast Jelly — Material Studies No. 010</title>
-  <meta name="description" content="A budding yeast cell as a soft body you can grab, wobble and cut open to see the nucleus, vacuole and mitochondria inside. XPBD tetrahedra and WebGPU." />
+  <title>Jelly Cells — Material Studies No. 010</title>
+  <meta name="description" content="Cells as soft bodies you can grab, wobble and cut open: budding yeast, a red blood cell, a fibroblast, microglia and a neuron, with labels and sections of what is inside. XPBD tetrahedra and WebGPU." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400;1,6..72,500&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
@@ -12,18 +12,30 @@
 </head>
 <body>
   <canvas id="stage" aria-label="Interactive soft-body budding yeast cell"></canvas>
+  <svg id="leaders" aria-hidden="true"></svg>
+  <div id="labels" aria-label="Labels"></div>
   <svg id="stroke" aria-hidden="true"><polyline points="" /></svg>
 
   <header class="title">
     <p class="eyebrow">Material Studies / No. 010</p>
-    <h1><span>Budding</span><span class="indent">Yeast.</span></h1>
-    <p class="tagline">A mother and her bud.<br />A little wobble.<br />Cut it open to look inside.</p>
+    <h1><span id="title1">Budding</span><span class="indent" id="title2">Yeast.</span></h1>
+    <p class="tagline" id="tagline">A mother and her bud.<br />A little wobble.<br />Cut it open to look inside.</p>
+    <div class="key">
+      <div class="key-head"><span class="label">Key</span><button id="show-all" class="link" hidden>Show all</button></div>
+      <ul id="legend"></ul>
+      <p class="hint">Click to hide · Shift-click to isolate · Hover to find it</p>
+    </div>
   </header>
 
   <div class="status"><span class="dot"></span><span id="status-text">WebGPU · Starting</span></div>
 
   <aside class="panel" id="panel">
     <div class="panel-head"><span class="label">The Specimen</span><span class="fig">fig. 10</span></div>
+
+    <div class="group">
+      <label class="label" for="cell-type">Cell</label>
+      <div class="select"><select id="cell-type"></select></div>
+    </div>
 
     <div class="group">
       <span class="label">Tool</span>
@@ -59,16 +71,20 @@
         <label><input type="checkbox" id="slow" /> ¼ speed</label>
         <label><input type="checkbox" id="mesh" /> Show mesh</label>
       </div>
-      <button id="pause" class="btn wide">Pause</button>
+      <div class="row">
+        <button id="labels-btn" class="btn grow toggle on" aria-pressed="true"><span class="switch"></span>Labels</button>
+        <button id="pause" class="btn grow">Pause</button>
+      </div>
     </div>
 
-    <div class="group key">
-      <span class="label">Key</span>
-      <ul id="legend"></ul>
-    </div>
   </aside>
 
   <section class="readout">
+    <div class="cut-report" id="cut-report" hidden>
+      <div class="cut-head"><span class="label">The cut passed through</span><button id="cut-close" class="x" aria-label="Close">×</button></div>
+      <ul id="cut-list"></ul>
+      <p class="cut-area" id="cut-area"></p>
+    </div>
     <p class="help" id="help"></p>
     <div class="stats">
       <div><span class="label">Mass</span><b id="s-mass">—</b><i>pg</i></div>
@@ -76,15 +92,25 @@
       <div><span class="label">Kinetic</span><b id="s-ke">—</b><i>µJ</i></div>
       <div><span class="label">Pieces</span><b id="s-pieces">—</b></div>
     </div>
-    <p class="fine">Illustrative scale: 1 sim unit = 1 µm of cell, with dynamics drawn as if it were 3 cm of gelatin (at true size a yeast cell is far too small and viscous to wobble). Mass is the cell's, at 1.1 pg/µm³; volume and energy are summed live over every tetrahedron.</p>
+    <p class="fine">Mass is the real cell's, at 1.1 pg/µm³. The dynamics are illustrative: the cell moves as if it were a few centimetres of gelatin, because at true size a cell is far too small and viscous to wobble. Volume and energy are summed live over every tetrahedron.</p>
   </section>
+
+  <div class="scalebar" id="scalebar" aria-label="Scale bar"><i></i><span></span></div>
+
+  <aside class="card" id="card" hidden>
+    <div class="card-head"><h2 id="card-name"></h2><button id="card-close" class="x" aria-label="Close">×</button></div>
+    <p class="card-size" id="card-size"></p>
+    <p id="card-blurb"></p>
+  </aside>
 
   <details class="inside">
     <summary>Inside the experiment <span>+</span></summary>
     <div class="inside-body">
+      <h3>The specimen</h3>
+      <p id="about"></p>
       <h3>A cell made of tetrahedra</h3>
-      <p>The cell is a mother ellipsoid and a smaller bud fused by a smooth union, so they meet at a narrow neck. That shape is filled with a body-centred cubic lattice of tetrahedra, clipped to the surface, with boundary particles snapped onto it. It is solved with XPBD at a fixed 60 Hz step split into 12 substeps. Each tetrahedron is pulled, with finite compliance, toward its best-fit rotated rest shape. That co-rotational constraint also flips inverted elements back out. A volume constraint on either side of it keeps the cytoplasm close to incompressible, so a stretched cell necks in.</p>
-      <p>Every tetrahedron knows what it sits in. Those in the cell wall are four times stiffer than cytoplasm, the nucleus twice as stiff, and the vacuole softer. Damping acts only on relative velocity along mesh edges, so the cell still falls and tumbles freely while its wobble dies away.</p>
+      <p>Each cell is a signed distance field: ellipsoids, tori and tapered tubes fused by smooth unions (for yeast, a mother and a bud meeting at a narrow neck). That shape is filled with a body-centred cubic lattice of tetrahedra, clipped to the surface, with boundary particles snapped onto it. It is solved with XPBD at a fixed 60 Hz step split into 12 substeps. Each tetrahedron is pulled, with finite compliance, toward its best-fit rotated rest shape. That co-rotational constraint also flips inverted elements back out. A volume constraint on either side of it keeps the cytoplasm close to incompressible, so a stretched cell necks in.</p>
+      <p>Every tetrahedron knows what it sits in. Wall and cortex, the nucleus and stress fibres are stiffer than cytoplasm; the yeast wall is four times stiffer. Damping acts only on relative velocity along mesh edges, so the cell still falls and tumbles freely while its wobble dies away.</p>
       <h3>Cutting</h3>
       <p>Your stroke fixes a vertical blade plane. For each piece it crosses, the piece's current pose is fitted with a best rotation, and the plane is carried back into rest space. Each side becomes a new piece: the cell's signed distance field intersected with its half-spaces, rebuilt as a fresh tetrahedral mesh. The knife then presses a groove, breaks through, and hands every new particle the position and speed of the flesh it came from. The blade wedges the faces apart on its way down.</p>
       <h3>Seeing inside</h3>

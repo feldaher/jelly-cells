@@ -10,7 +10,7 @@ struct VOut { @builtin(position) clip: vec4f, @location(0) world: vec3f };
 }
 
 @fragment fn fs(in: VOut) -> @location(0) vec4f {
-  let bg = F.palette[9].rgb;
+  let bg = F.palette[2].rgb;
   let sh = shadowAt(in.world, 2.2);
   let ao = contactOcclusion(in.world);
   // shadow light is tinted by the jelly it passed through

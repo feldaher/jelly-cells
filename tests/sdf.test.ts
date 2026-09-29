@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { primSdf, cellSdf, packAnatomyGPU, materialAt } from '../src/anatomy/sdf';
-import { defaultAnatomy } from '../src/anatomy/anatomy';
+import { defaultAnatomy, MOTHER, BUD } from '../src/cells/yeast';
 import { Mat, Prim, PRIM_STRIDE, type Primitive } from '../src/contracts';
 
 describe('primitive SDFs', () => {
@@ -24,8 +24,8 @@ describe('primitive SDFs', () => {
 describe('anatomy', () => {
   const an = defaultAnatomy();
   it('mother and bud centres are inside the cell', () => {
-    expect(cellSdf(an, ...an.mother.centre)).toBeLessThan(-1);
-    expect(cellSdf(an, ...an.bud.centre)).toBeLessThan(-1);
+    expect(cellSdf(an, ...MOTHER.centre)).toBeLessThan(-1);
+    expect(cellSdf(an, ...BUD.centre)).toBeLessThan(-1);
   });
   it('the nucleus centre is nucleus material', () => {
     const nuc = an.organelles.find((o) => o.material === Mat.Nucleus)!;
@@ -38,8 +38,8 @@ describe('anatomy', () => {
   it('packs primitives for the GPU', () => {
     const buf = packAnatomyGPU(an);
     const n = an.organelles.length;
-    expect(buf.length).toBeGreaterThanOrEqual(n * PRIM_STRIDE);
-    const o = an.organelles[n - 1], base = (n - 1) * PRIM_STRIDE;
+    expect(buf.length).toBe((an.body.length + n) * PRIM_STRIDE);
+    const o = an.organelles[n - 1], base = (an.body.length + n - 1) * PRIM_STRIDE;
     expect(buf[base]).toBe(o.kind);
     expect(buf[base + 1]).toBe(o.material);
     expect(buf[base + 4]).toBeCloseTo(o.a[0]);

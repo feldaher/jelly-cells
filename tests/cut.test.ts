@@ -1,6 +1,7 @@
 import { loadFeature, describeFeature } from '@amiceli/vitest-cucumber';
 import { expect } from 'vitest';
 import { freshCell, simulate, anatomy } from './helpers';
+import { MOTHER, BUD } from '../src/cells/yeast';
 import { planCut, applyCut, bestFitPose } from '../src/cut/cut';
 import { restVolume, linearMomentum } from '../src/physics/metrics';
 import type { Piece, Plane, Vec3 } from '../src/contracts';
@@ -29,7 +30,7 @@ describeFeature(feature, ({ Scenario }) => {
     Given('an intact cell resting on the floor', () => { pieces = [freshCell(0)]; simulate(pieces, 0.5); });
   const cutMother = (When: (s: string, f: () => void) => void) =>
     When('a blade passes through the middle of the mother', () => {
-      const plan = planCut(anatomy, pieces, verticalPlaneAtRestX(pieces[0], anatomy.mother.centre[0]), () => nextId++);
+      const plan = planCut(anatomy, pieces, verticalPlaneAtRestX(pieces[0], MOTHER.centre[0]), () => nextId++);
       pieces = applyCut(pieces, plan);
     });
 
@@ -47,15 +48,15 @@ describeFeature(feature, ({ Scenario }) => {
   Scenario('A cut through the neck frees the bud', ({ Given, When, Then }) => {
     resting(Given);
     When('a blade passes through the neck', () => {
-      const xNeck = (anatomy.mother.centre[0] + anatomy.mother.radii[0] + anatomy.bud.centre[0] - anatomy.bud.radii[0]) / 2;
+      const xNeck = (MOTHER.centre[0] + MOTHER.radii[0] + BUD.centre[0] - BUD.radii[0]) / 2;
       const plan = planCut(anatomy, pieces, verticalPlaneAtRestX(pieces[0], xNeck), () => nextId++);
       pieces = applyCut(pieces, plan);
     });
     Then('one piece contains the bud centre and the other the mother centre', () => {
       expect(pieces.length).toBe(2);
-      const side = (p: Piece, x: number) => p.planes.every((pl) => pl.n[0] * x + pl.n[1] * anatomy.mother.centre[1] + pl.n[2] * anatomy.mother.centre[2] <= pl.d);
-      const budOwner = pieces.findIndex((p) => side(p, anatomy.bud.centre[0]));
-      const motherOwner = pieces.findIndex((p) => side(p, anatomy.mother.centre[0]));
+      const side = (p: Piece, x: number) => p.planes.every((pl) => pl.n[0] * x + pl.n[1] * MOTHER.centre[1] + pl.n[2] * MOTHER.centre[2] <= pl.d);
+      const budOwner = pieces.findIndex((p) => side(p, BUD.centre[0]));
+      const motherOwner = pieces.findIndex((p) => side(p, MOTHER.centre[0]));
       expect(budOwner).toBeGreaterThanOrEqual(0);
       expect(motherOwner).toBeGreaterThanOrEqual(0);
       expect(budOwner).not.toBe(motherOwner);
@@ -65,7 +66,7 @@ describeFeature(feature, ({ Scenario }) => {
   Scenario('A blade that misses leaves the cell alone', ({ Given, When, Then }) => {
     resting(Given);
     When('a blade passes beside the cell', () => {
-      const plan = planCut(anatomy, pieces, verticalPlaneAtRestX(pieces[0], anatomy.bud.centre[0] + 5), () => nextId++);
+      const plan = planCut(anatomy, pieces, verticalPlaneAtRestX(pieces[0], BUD.centre[0] + 5), () => nextId++);
       pieces = applyCut(pieces, plan);
     });
     Then('there is one piece', () => expect(pieces.length).toBe(1));

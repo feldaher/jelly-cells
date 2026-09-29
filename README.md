@@ -1,6 +1,22 @@
-# Budding Yeast (Material Studies No. 010)
+# Jelly Cells (Material Studies No. 010)
 
-A budding yeast cell as a soft body. Grab it, stretch the neck, give it a nudge, and cut it open with a knife to see sections through the nucleus, nucleolus, vacuoles, mitochondrial network, septin ring and cell wall.
+Cells as soft bodies. Grab them, stretch them, give them a nudge, and cut them open with a knife to see what is inside. Five specimens are in the dropdown:
+
+| Cell | Inside |
+|---|---|
+| **Budding yeast** | cell wall, nucleus + nucleolus, vacuoles, mitochondrial network, septin ring, bud scars |
+| **Red blood cell** | biconcave disc: membrane skeleton and haemoglobin, no nucleus |
+| **Fibroblast** | flat and spread: nucleus, nucleoli, stress fibres ending in focal adhesions, mitochondria |
+| **Microglia** | ramified processes, bean-shaped nucleus, lysosomes / phagolysosome, mitochondria |
+| **Neuron** | soma, axon hillock, axon + terminal, dendrites, nucleolus, Nissl bodies, mitochondria |
+
+Teaching aids:
+- **Labels** that ride with the jelly; toggle them with the Labels button or `L`. Click one for a card with its real size and what it does.
+- **Clickable key**: click to hide an organelle, shift-click to show only that one, hover to highlight it.
+- **"The cut passed through"**: after each cut, a report of what the blade crossed, with sizes and profile counts.
+- **Scale bar** in µm that follows the zoom.
+
+`?cell=neuron` (or `rbc`, `fibroblast`, `microglia`, `yeast`) opens a specific cell.
 
 It is a static site: WebGPU for rendering and TypeScript XPBD physics on the CPU. There are no runtime dependencies.
 
@@ -23,12 +39,14 @@ It needs a browser with WebGPU: current Chrome or Edge, Safari 18+, or Firefox w
 |---|---|
 | **Hand** | Drag the cell to pull it. Scroll or use a second finger while holding to twist. Drag empty floor to orbit, scroll to zoom. |
 | **Knife** | Draw a stroke across the cell. A vertical blade comes down along it and splits every piece it crosses. |
-| Keys | `H` hand · `K` knife · `N` nudge · `R` reset · `Space` pause |
+| Keys | `H` hand · `K` knife · `N` nudge · `R` reset · `L` labels · `Esc` close card · `Space` pause |
 | `?debug` | Shows the physics step time in the status pill. |
 
 ## How it works
 
-- **Anatomy** (`src/anatomy`): signed distance fields in µm. The cell is a smooth union of a mother and a bud ellipsoid. Organelles are primitives: ellipsoids, capsule chains for mitochondria, and tori for the septin ring and bud scars. The same functions exist in TypeScript and WGSL (`render/shaders/common.wgsl`).
+- **Cell types** (`src/cells`): each is a `CellType` (see `src/contracts.ts`). It provides a body (ellipsoids, tori and tapered tubes combined by smooth union or subtraction), organelles, labels, key, stiffness per material, camera and µm-per-unit scale.
+- **Anatomy** (`src/anatomy`): the signed distance fields. The same functions exist in TypeScript and WGSL (`render/shaders/common.wgsl`).
+- **Teaching** (`src/teach`, `src/ui/teach.ts`): section measurement, scale bar, label layout and the overlay UI.
 - **Mesh** (`src/mesh`): a BCC tetrahedral lattice clipped to the piece's SDF, with boundary nodes snapped onto the surface. Each tet takes the material at its centroid. The render skin is a surface-nets isosurface; organelles are analytic meshes. Both are embedded in the tets by barycentric weights.
 - **Physics** (`src/physics`): XPBD at a fixed 60 Hz step with 12 substeps. Each tet has a co-rotational shape constraint and a volume constraint on either side of it, and its stiffness is scaled by material (wall ×4, nucleus ×2, vacuole ×0.7). The rest are edge-relative damping, floor contact with friction, a soft grab, and particle contact between pieces.
 - **Cutting** (`src/cut`): the stroke defines a vertical world plane. It is carried into each piece's rest space through a best-fit rotation. Each side becomes a new piece (the SDF ∩ its half-spaces), built in a Web Worker while the knife presses its groove. The new pieces then inherit position and velocity from the flesh they came from.
@@ -46,4 +64,4 @@ The types every layer agrees on live in `src/contracts.ts`. Behaviour is specifi
 
 ## Scale
 
-The sim unit is 1 µm, and the mass shown is the cell's (~74 pg at 1.1 pg/µm³). The *dynamics* are illustrative: the cell is simulated as if it were 3 cm of gelatin. At its true size a yeast cell lives at very low Reynolds number and would never visibly wobble.
+Each cell type maps sim units to µm (yeast 1, RBC 1.25, microglia 1.5, neuron 2, fibroblast 4), so labels, the scale bar, the cut report and the mass are in real units. The *dynamics* are illustrative: every cell moves as if it were a few centimetres of gelatin. At true size a cell lives at very low Reynolds number and would never visibly wobble.

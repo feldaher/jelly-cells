@@ -111,10 +111,12 @@ export function tubeMesh(pts: Vec3[], radius: number, sides = 8, sub = 4): RestM
 export function organelleTemplates(an: Anatomy): OrganelleTemplate[] {
   const out: OrganelleTemplate[] = [];
   for (const o of an.organelles) {
-    if (o.kind === Prim.Ellipsoid) out.push({ material: o.material, mesh: ellipsoidMesh(o.a, o.b, o.material === Mat.Nucleolus ? 20 : 30, o.material === Mat.Nucleolus ? 12 : 20) });
+    const small = Math.max(...o.b) < 0.45;
+    if (o.kind === Prim.Ellipsoid) out.push({ material: o.material, mesh: ellipsoidMesh(o.a, o.b, small ? 18 : 30, small ? 10 : 20) });
     else if (o.kind === Prim.Torus && o.material === Mat.Septin) out.push({ material: o.material, mesh: torusMesh(o.a, o.b, o.R, o.r) });
+    // capsules belong to tubules, meshed below; bud-scar tori are painted on the skin
   }
-  for (const t of an.tubules) out.push({ material: Mat.Mitochondrion, mesh: tubeMesh(t.points, t.radius) });
+  for (const t of an.tubules) out.push({ material: t.material, mesh: tubeMesh(t.points, t.radius, t.radius < 0.09 ? 6 : 8) });
   return out;
 }
 

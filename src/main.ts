@@ -1,5 +1,7 @@
 import './style.css';
-import type { Vec3 } from './contracts';
+import type { CellTypeId, Vec3 } from './contracts';
+import { CELL_TYPES } from './cells';
+import { TeachUi } from './ui/teach';
 import { World } from './app/world';
 import { raycast, rayPlane, screenRay, type Ray } from './app/pick';
 import { startGrab } from './physics/grab';
@@ -15,10 +17,11 @@ const status = document.querySelector('.status') as HTMLElement;
 const statusText = $('status-text');
 
 const REACH = 7;
-const HELP = {
-  hand: '<b>Hand</b>Grab any part (mother, bud or neck) and pull. Scroll, or add a second finger, while holding to twist it. Drag the floor to look around.',
+const help = (w: World) => ({
+  hand: `<b>Hand</b>${w.type.help} Scroll, or add a second finger, while holding to twist it. Drag the floor to look around. Click a label to learn more.`,
   knife: '<b>Knife</b>Draw a stroke across the cell. The blade comes down along it and splits every piece it crosses. Then turn the halves over and look at the faces.',
-};
+});
+let teach: TeachUi;
 
 let tool: 'hand' | 'knife' = 'hand';
 let variety: Variety = VARIETIES[0];
@@ -74,11 +77,13 @@ async function main() {
 
   statusText.textContent = 'WebGPU · Building';
   await new Promise((r) => setTimeout(r, 30));
-  const world = new World();
+  const initial = (new URLSearchParams(location.search).get('cell') as CellTypeId) || 'yeast';
+  const world = new World(CELL_TYPES.some((c) => c.id === initial) ? initial : 'yeast');
   renderer.setAnatomy(world.an);
   statusText.textContent = 'WebGPU · Live';
 
-  setupUi(world);
+  teach = new TeachUi(world);
+  setupUi(world, renderer);
   setupInput(world, renderer);
 
   let last = performance.now(), frame = 0;
@@ -94,10 +99,13 @@ async function main() {
     cam.target[0] += (c[0] - cam.target[0]) * k;
     cam.target[1] += (Math.min(3, Math.max(1.2, c[1])) - cam.target[1]) * k;
     cam.target[2] += (c[2] - cam.target[2]) * k;
-    renderer.render(world.pieces, camera(), {
+    const c0 = camera();
+    renderer.render(world.pieces, c0, {
       variety, showMesh, time: now / 1000,
       knife: world.knife ? bladeMesh(world.knife) : null,
+      highlight: teach.highlight, hidden: teach.hidden, absorb: world.type.absorb,
     });
+    teach.update(renderer.viewProj, c0.eye, c0.target, canvas.clientWidth, canvas.clientHeight);
     if (frame++ % 6 === 0) updateStats(world);
     if (debug && frame % 30 === 0) statusText.textContent = `step ${world.stepMs.toFixed(1)} ms`;
     requestAnimationFrame(loop);
@@ -113,16 +121,48 @@ function updateStats(world: World) {
   $('s-pieces').textContent = String(s.pieces);
 }
 
-function setupUi(world: World) {
-  const help = $('help');
-  help.innerHTML = HELP.hand;
+/** Everything on the page that depends on the cell type. */
+function showType(world: World) {
+  const t = world.type;
+  $('title1').textContent = t.title[0];
+  $('title2').textContent = t.title[1];
+  $('tagline').innerHTML = t.tagline.join('<br />');
+  $('about').textContent = t.about;
+  $('help').innerHTML = help(world)[tool];
+  cam.yaw = t.camera.yaw; cam.pitch = t.camera.pitch; cam.dist = t.camera.dist;
+  const c = world.centre();
+  cam.target = [c[0], Math.min(3, Math.max(1.2, c[1])), c[2]];
+  teach.setType(t, variety);
+  const url = new URL(location.href);
+  url.searchParams.set('cell', t.id);
+  history.replaceState(null, '', url);
+}
+
+function setupUi(world: World, renderer: Renderer) {
+  const helpEl = $('help');
+  const select = $<HTMLSelectElement>('cell-type');
+  select.innerHTML = CELL_TYPES.map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
+  select.value = world.type.id;
+  select.addEventListener('change', async () => {
+    statusText.textContent = 'WebGPU · Building';
+    select.disabled = true;
+    await new Promise((r) => setTimeout(r, 30));
+    world.setCellType(select.value as CellTypeId);
+    renderer.setAnatomy(world.an);
+    showType(world);
+    select.disabled = false;
+    statusText.textContent = world.paused ? 'WebGPU · Paused' : 'WebGPU · Live';
+    select.blur();
+  });
+  showType(world);
+  $('labels-btn').addEventListener('click', () => teach.toggleLabels());
   document.querySelectorAll<HTMLButtonElement>('.tool').forEach((b) => b.addEventListener('click', () => {
     tool = b.dataset.tool as typeof tool;
     document.querySelectorAll<HTMLButtonElement>('.tool').forEach((o) => {
       o.classList.toggle('active', o === b);
       o.setAttribute('aria-checked', String(o === b));
     });
-    help.innerHTML = HELP[tool];
+    helpEl.innerHTML = help(world)[tool];
     canvas.classList.toggle('knife', tool === 'knife');
   }));
 
@@ -135,6 +175,7 @@ function setupUi(world: World) {
       variety = v;
       sw.querySelectorAll('.swatch').forEach((o) => o.classList.toggle('active', o === b));
       applyTheme();
+      teach.setVariety(v);
     });
     sw.appendChild(b);
   });
@@ -157,12 +198,14 @@ function setupUi(world: World) {
     statusText.textContent = world.paused ? 'WebGPU · Paused' : 'WebGPU · Live';
   });
   window.addEventListener('keydown', (e) => {
-    if (e.target instanceof HTMLInputElement) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
     if (e.key === ' ') { e.preventDefault(); pause.click(); }
     if (e.key === 'h') (document.querySelector('[data-tool="hand"]') as HTMLButtonElement).click();
     if (e.key === 'k') (document.querySelector('[data-tool="knife"]') as HTMLButtonElement).click();
     if (e.key === 'n') world.nudge();
     if (e.key === 'r') world.reset();
+    if (e.key === 'l') teach.toggleLabels();
+    if (e.key === 'Escape') teach.closeCard();
   });
 }
 
@@ -171,11 +214,6 @@ function applyTheme() {
   root.style.setProperty('--bg', variety.background);
   root.style.setProperty('--ink', variety.ink);
   root.dataset.variety = variety.id;
-  const items: [string, string][] = [
-    ['Cell wall', variety.wall], ['Cytoplasm', variety.scatter], ['Nucleus', variety.nucleus], ['Nucleolus', variety.nucleolus],
-    ['Vacuole', variety.vacuole], ['Mitochondria', variety.mitochondrion], ['Septin ring', variety.septin], ['Bud scars', variety.budScar],
-  ];
-  $('legend').innerHTML = items.map(([n, c]) => `<li><i style="--c:${c}"></i>${n}</li>`).join('');
 }
 
 function setupInput(world: World, renderer: Renderer) {

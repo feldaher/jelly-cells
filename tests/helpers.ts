@@ -1,4 +1,4 @@
-import { defaultAnatomy } from '../src/anatomy/anatomy';
+import { defaultAnatomy } from '../src/cells/yeast';
 import { buildPiece } from '../src/mesh/piece';
 import { defaultParams } from '../src/physics/params';
 import { step } from '../src/physics/xpbd';

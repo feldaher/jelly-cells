@@ -5,15 +5,6 @@ import type { Anatomy, Plane, SimMesh } from '../contracts';
 import { gradient, materialAt, pieceSdf } from '../anatomy/sdf';
 import { inv3 } from '../math/mat3';
 
-/** Depth below the cell surface whose tetrahedra count as wall in the simulation (µm). */
-export const SIM_WALL_DEPTH = 0.3;
-/**
- * Lattice spacing: coarse enough that 12 XPBD substeps converge for the whole cell,
- * and fine enough that even a small piece keeps ~MIN_PARTICLES particles.
- */
-const MAX_SPACING = 0.72;
-const MIN_SPACING = 0.36;
-const MIN_PARTICLES = 120;
 /** Tets below this quality (1 = regular) are dropped after snapping. */
 const MIN_QUALITY = 0.12;
 
@@ -35,12 +26,7 @@ export function tetVolume(p: ArrayLike<number>, a: number, b: number, c: number,
 }
 
 export function pieceBounds(an: Anatomy): { lo: number[]; hi: number[] } {
-  const lo = [0, 0, 0], hi = [0, 0, 0];
-  for (let k = 0; k < 3; k++) {
-    lo[k] = Math.min(an.mother.centre[k] - an.mother.radii[k], an.bud.centre[k] - an.bud.radii[k]) - 0.3;
-    hi[k] = Math.max(an.mother.centre[k] + an.mother.radii[k], an.bud.centre[k] + an.bud.radii[k]) + 0.3;
-  }
-  return { lo, hi };
+  return { lo: an.bounds.lo.map((x) => x - 0.3), hi: an.bounds.hi.map((x) => x + 0.3) };
 }
 
 /** Rough volume of a piece by sampling a coarse grid. */
@@ -53,9 +39,14 @@ export function estimateVolume(an: Anatomy, planes: Plane[], step = 0.2): number
   return n * step ** 3;
 }
 
+/**
+ * Lattice spacing: coarse enough that 12 XPBD substeps converge for the whole cell,
+ * and fine enough that even a small piece keeps ~minParticles particles.
+ */
 export function chooseSpacing(an: Anatomy, planes: Plane[]): number {
   const vol = estimateVolume(an, planes);
-  return Math.min(MAX_SPACING, Math.max(MIN_SPACING, Math.cbrt((2 * vol) / MIN_PARTICLES)));
+  const m = an.mesh;
+  return Math.min(m.maxSpacing, Math.max(m.minSpacing, Math.cbrt((2 * vol) / m.minParticles)));
 }
 
 export function buildSimMesh(an: Anatomy, planes: Plane[], spacing = chooseSpacing(an, planes)): SimMesh {
@@ -186,7 +177,7 @@ export function finishSimMesh(an: Anatomy, restIn: Float32Array, tetsIn: Uint32A
       mass[i] += restVol[t] / 4;
       cx += restPos[3 * i] / 4; cy += restPos[3 * i + 1] / 4; cz += restPos[3 * i + 2] / 4;
     }
-    tetMaterial[t] = materialAt(an, cx, cy, cz, SIM_WALL_DEPTH);
+    tetMaterial[t] = materialAt(an, cx, cy, cz, an.cortexDepth);
   }
   const invMass = Float32Array.from(mass, (m) => (m > 0 ? 1 / m : 0));
 

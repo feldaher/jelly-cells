@@ -4,7 +4,7 @@
 //   3. per piece, back to front: back-face depth → jelly front faces refracting the scene
 //   4. composite to the canvas (+ tet edges when "Show mesh" is on)
 
-import type { Anatomy, Piece, SkinMesh } from '../contracts';
+import type { Anatomy, Piece, SkinMesh, Vec3 } from '../contracts';
 import { packAnatomyGPU } from '../anatomy/sdf';
 import { lookAt, mul, ortho, perspective, type M4 } from '../math/mat4';
 import { packPalette, type Variety } from './palette';
@@ -40,6 +40,12 @@ export interface FrameOptions {
   showMesh: boolean;
   knife: WorldMesh | null;
   time: number;
+  /** Material to spotlight (-1 for none). */
+  highlight: number;
+  /** Bitmask of hidden materials. */
+  hidden: number;
+  /** Cell-type cytoplasm absorption for brightfield. */
+  absorb?: Vec3;
 }
 
 interface GpuMesh {
@@ -135,8 +141,8 @@ export class Renderer {
     context.configure({ device, format: this.format, alphaMode: 'opaque' });
     const d = device;
     const U = GPUBufferUsage;
-    this.frameBuf = d.createBuffer({ size: 560, usage: U.UNIFORM | U.COPY_DST });
-    this.cellBuf = d.createBuffer({ size: 80, usage: U.UNIFORM | U.COPY_DST });
+    this.frameBuf = d.createBuffer({ size: 688, usage: U.UNIFORM | U.COPY_DST });
+    this.cellBuf = d.createBuffer({ size: 16, usage: U.UNIFORM | U.COPY_DST });
     this.camLight = d.createBuffer({ size: 64, usage: U.UNIFORM | U.COPY_DST });
     this.camFloor = d.createBuffer({ size: 64, usage: U.UNIFORM | U.COPY_DST });
     this.camMain = d.createBuffer({ size: 64, usage: U.UNIFORM | U.COPY_DST });
@@ -255,11 +261,7 @@ export class Renderer {
   }
 
   setAnatomy(an: Anatomy) {
-    const cell = new Float32Array(20);
-    cell.set(an.mother.centre, 0); cell.set(an.mother.radii, 4);
-    cell.set(an.bud.centre, 8); cell.set(an.bud.radii, 12);
-    cell[16] = an.neckBlend; cell[17] = an.wallThickness;
-    this.device.queue.writeBuffer(this.cellBuf, 0, cell);
+    this.device.queue.writeBuffer(this.cellBuf, 0, new Float32Array([an.wallThickness, an.body.length, 0, 0]));
     const prims = packAnatomyGPU(an);
     this.primBuf?.destroy();
     this.primBuf = this.device.createBuffer({ size: prims.byteLength, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
@@ -400,19 +402,19 @@ export class Renderer {
     const floorView = lookAt([t[0], -0.5, t[2]], [t[0], 10, t[2]], [0, 0, -1]);
     const floorVP = mul(ortho(-FLOOR_EXTENT, FLOOR_EXTENT, -FLOOR_EXTENT, FLOOR_EXTENT, 0, 20), floorView);
 
-    const f = new Float32Array(140);
+    const f = new Float32Array(172);
     f.set(viewProj, 0); f.set(view, 16); f.set(lightVP, 32); f.set(floorVP, 48);
     f.set([...cam.eye, 1], 64);
     f.set([...L, 0], 68);
     f.set([this.width, this.height, 1 / this.width, 1 / this.height], 72);
     f.set([proj[10], proj[14], 0.5, 200], 76);
-    f.set([opt.time, this.primCount, 0, 0], 80);
-    f.set(packPalette(opt.variety), 84);
+    f.set([opt.time, this.primCount, opt.highlight, opt.hidden], 80);
+    f.set(packPalette(opt.variety, opt.absorb), 84);
     q.writeBuffer(this.frameBuf, 0, f);
     q.writeBuffer(this.camLight, 0, lightVP);
     q.writeBuffer(this.camFloor, 0, floorVP);
     q.writeBuffer(this.camMain, 0, viewProj);
-    const bg = f.subarray(84 + 36, 84 + 39);
+    const bg = f.subarray(84 + 8, 84 + 11);
     q.writeBuffer(this.blitBuf, 0, new Float32Array([bg[0], bg[1], bg[2], opt.variety.emissive ? 0.25 : 0.06]));
 
     const gps = pieces.map((p) => this.pieces.get(p)!);

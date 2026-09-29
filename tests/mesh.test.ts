@@ -1,6 +1,6 @@
 import { loadFeature, describeFeature } from '@amiceli/vitest-cucumber';
 import { expect } from 'vitest';
-import { defaultAnatomy } from '../src/anatomy/anatomy';
+import { defaultAnatomy, MOTHER, BUD } from '../src/cells/yeast';
 import { cellSdf, gradient } from '../src/anatomy/sdf';
 import { buildSimMesh } from '../src/mesh/tetgen';
 import { buildPiece } from '../src/mesh/piece';
@@ -83,8 +83,8 @@ describeFeature(feature, ({ Scenario }) => {
     And('particles exist on both sides of the neck', () => {
       let m = 0, b = 0;
       for (let i = 0; i < sim.restPos.length; i += 3) {
-        if (sim.restPos[i] < an.mother.centre[0]) m++;
-        if (sim.restPos[i] > an.bud.centre[0]) b++;
+        if (sim.restPos[i] < MOTHER.centre[0]) m++;
+        if (sim.restPos[i] > BUD.centre[0]) b++;
       }
       expect(m).toBeGreaterThan(50);
       expect(b).toBeGreaterThan(10);

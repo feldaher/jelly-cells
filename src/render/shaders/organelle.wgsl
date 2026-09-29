@@ -22,13 +22,13 @@ fn clippedAway(rest: vec3f) -> bool {
 }
 
 @fragment fn fs(in: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4f {
-  if (clippedAway(in.rest)) { discard; }
+  if (clippedAway(in.rest) || isHidden(in.mat)) { discard; }
   var N = normalize(in.nrm);
   let V = normalize(F.camPos.xyz - in.world);
   if (dot(N, V) < 0.0) { N = -N; }
   let base = materialColor(in.mat);
   let L = F.lightDir.xyz;
-  let emissive = F.palette[11].y;
+  let emissive = F.palette[4].y;
   let sh = shadowAt(in.world, 1.2);
   let diff = (0.5 + 0.5 * dot(N, L)) * (0.55 + 0.45 * sh);
   var c = base * (0.3 + 0.8 * diff) + vec3f(ggx(N, V, L, 0.35) * 0.25 * sh);
@@ -39,5 +39,14 @@ fn clippedAway(rest: vec3f) -> bool {
   c = mix(c, glow, emissive);
   // vacuoles are fluid-filled and glassy
   if (abs(in.mat - 4.0) < 0.5) { c = mix(c, studio(reflect(-V, N)), fresnel(dot(N, V), 0.04) * (1.0 - emissive)); }
+  // teaching highlight: the named organelle glows, everything else recedes
+  let hl = highlight();
+  if (hl > -0.5) {
+    if (abs(in.mat - hl) < 0.5) {
+      c = c * 1.15 + base * (0.35 + 0.25 * sin(F.params.x * 4.0));
+    } else {
+      c = mix(c, F.palette[2].rgb, 0.65);
+    }
+  }
   return vec4f(c, 1.0);
 }

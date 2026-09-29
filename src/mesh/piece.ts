@@ -7,8 +7,6 @@ import { buildSkinGeometry, embedMesh, TetGrid, updateSkin, SKIN_MATERIAL } from
 import { mergeMeshes, organelleTemplates, type OrganelleTemplate } from './organelleMesh';
 import { pieceSdf } from '../anatomy/sdf';
 
-/** Render grid spacing of the skin (µm). */
-const SKIN_GRID = 0.11;
 /** How far outside its tet (in barycentric units) a skin vertex may sit. */
 const EMBED_TOLERANCE = 0.6;
 
@@ -32,7 +30,7 @@ export function buildPieces(an: Anatomy, planes: Plane[], nextId: () => number):
   const sims: SimMesh[] = groups.size === 1 ? [whole] : [...groups.values()].map((g) => finishSimMesh(an, whole.restPos, Uint32Array.from(g), whole.spacing));
 
   const { lo, hi } = bounds(whole.restPos);
-  const skinGeom = buildSkinGeometry(an, planes, lo, hi, SKIN_GRID);
+  const skinGeom = buildSkinGeometry(an, planes, lo, hi, an.mesh.skinGrid);
 
   const pieces: Piece[] = [];
   for (const sim of sims.sort((a, b) => b.tets.length - a.tets.length)) {

@@ -1,7 +1,7 @@
-// Signed distance fields of the cell and its organelles, in rest space (µm).
-// The WGSL in render/shaders/anatomy.wgsl mirrors primSdf / cellSdf exactly.
+// Signed distance fields of the cell and its organelles, in rest space (sim units).
+// The WGSL in render/shaders/common.wgsl mirrors primSdf / cellSdf exactly.
 
-import { Mat, Prim, PRIM_STRIDE, type Anatomy, type Ellipsoid, type Material, type Plane, type Primitive } from '../contracts';
+import { Mat, Prim, PRIM_STRIDE, type Anatomy, type BodyPart, type Ellipsoid, type Material, type Plane, type Primitive, type Vec3 } from '../contracts';
 
 export function ellipsoidSdf(e: Ellipsoid, x: number, y: number, z: number): number {
   const px = x - e.centre[0], py = y - e.centre[1], pz = z - e.centre[2];
@@ -18,10 +18,28 @@ export function smin(a: number, b: number, k: number): number {
   return Math.min(a, b) - (h * h * k) / 4;
 }
 
+export function smax(a: number, b: number, k: number): number {
+  return -smin(-a, -b, k);
+}
+
 export function primSdf(p: Primitive, x: number, y: number, z: number): number {
   switch (p.kind) {
-    case Prim.Ellipsoid:
-      return ellipsoidSdf({ centre: p.a, radii: p.b }, x, y, z);
+    case Prim.Ellipsoid: {
+      const [rx, ry, rz] = p.b;
+      const ax = (x - p.a[0]) / rx, ay = (y - p.a[1]) / ry, az = (z - p.a[2]) / rz;
+      const k0 = Math.sqrt(ax * ax + ay * ay + az * az);
+      const k1 = Math.sqrt((ax * ax) / (rx * rx) + (ay * ay) / (ry * ry) + (az * az) / (rz * rz));
+      if (k1 < 1e-9) return -Math.min(rx, ry, rz);
+      return (k0 * (k0 - 1)) / k1;
+    }
+    case Prim.Cone: {
+      // tapered capsule: radius runs linearly from R at a to r at b
+      const bax = p.b[0] - p.a[0], bay = p.b[1] - p.a[1], baz = p.b[2] - p.a[2];
+      const pax = x - p.a[0], pay = y - p.a[1], paz = z - p.a[2];
+      const h = Math.min(1, Math.max(0, (pax * bax + pay * bay + paz * baz) / (bax * bax + bay * bay + baz * baz)));
+      const qx = pax - bax * h, qy = pay - bay * h, qz = paz - baz * h;
+      return Math.sqrt(qx * qx + qy * qy + qz * qz) - (p.R + (p.r - p.R) * h);
+    }
     case Prim.Capsule: {
       const bax = p.b[0] - p.a[0], bay = p.b[1] - p.a[1], baz = p.b[2] - p.a[2];
       const pax = x - p.a[0], pay = y - p.a[1], paz = z - p.a[2];
@@ -40,9 +58,46 @@ export function primSdf(p: Primitive, x: number, y: number, z: number): number {
   return Infinity;
 }
 
-/** The whole cell: mother and bud fused by a smooth union at the neck. */
+/** The whole cell: its body parts combined in order by smooth union / subtraction. */
 export function cellSdf(an: Anatomy, x: number, y: number, z: number): number {
-  return smin(ellipsoidSdf(an.mother, x, y, z), ellipsoidSdf(an.bud, x, y, z), an.neckBlend);
+  const body = an.body;
+  let d = primSdf(body[0].prim, x, y, z);
+  for (let i = 1; i < body.length; i++) {
+    const b = body[i], p = primSdf(b.prim, x, y, z);
+    if (b.op === 'union') d = b.blend > 0 ? smin(d, p, b.blend) : Math.min(d, p);
+    else d = b.blend > 0 ? smax(d, -p, b.blend) : Math.max(d, -p);
+  }
+  return d;
+}
+
+/** Axis-aligned box around a primitive. */
+export function primBounds(p: Primitive): { lo: Vec3; hi: Vec3 } {
+  switch (p.kind) {
+    case Prim.Ellipsoid:
+      return { lo: [p.a[0] - p.b[0], p.a[1] - p.b[1], p.a[2] - p.b[2]], hi: [p.a[0] + p.b[0], p.a[1] + p.b[1], p.a[2] + p.b[2]] };
+    case Prim.Torus: {
+      const e = p.R + p.r;
+      return { lo: [p.a[0] - e, p.a[1] - e, p.a[2] - e], hi: [p.a[0] + e, p.a[1] + e, p.a[2] + e] };
+    }
+    default: {
+      const e = Math.max(p.R, p.r);
+      return {
+        lo: [Math.min(p.a[0], p.b[0]) - e, Math.min(p.a[1], p.b[1]) - e, Math.min(p.a[2], p.b[2]) - e],
+        hi: [Math.max(p.a[0], p.b[0]) + e, Math.max(p.a[1], p.b[1]) + e, Math.max(p.a[2], p.b[2]) + e],
+      };
+    }
+  }
+}
+
+/** Box around the union parts of a body, padded by their blends. */
+export function bodyBounds(body: BodyPart[]): { lo: Vec3; hi: Vec3 } {
+  const lo: Vec3 = [Infinity, Infinity, Infinity], hi: Vec3 = [-Infinity, -Infinity, -Infinity];
+  body.forEach((b, i) => {
+    if (i > 0 && b.op !== 'union') return;
+    const bb = primBounds(b.prim);
+    for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], bb.lo[k] - b.blend); hi[k] = Math.max(hi[k], bb.hi[k] + b.blend); }
+  });
+  return { lo, hi };
 }
 
 export function planeDist(pl: Plane, x: number, y: number, z: number): number {
@@ -77,13 +132,18 @@ export function materialAt(an: Anatomy, x: number, y: number, z: number, wallDep
   return Mat.Cytoplasm;
 }
 
-/** Packs organelles as [kind, material, R, r, a.xyz, 0, b.xyz, 0] for the GPU storage buffer. */
+/**
+ * Packs body parts then organelles as [kind, material, R, r, a.xyz, op, b.xyz, blend]
+ * for the GPU storage buffer (op: 0 union, 1 subtract).
+ */
 export function packAnatomyGPU(an: Anatomy): Float32Array {
-  const out = new Float32Array(Math.max(1, an.organelles.length) * PRIM_STRIDE);
-  an.organelles.forEach((o, i) => {
+  const all = [...an.body.map((b) => ({ p: b.prim, op: b.op === 'union' ? 0 : 1, blend: b.blend })), ...an.organelles.map((p) => ({ p, op: 0, blend: 0 }))];
+  const out = new Float32Array(all.length * PRIM_STRIDE);
+  all.forEach(({ p, op, blend }, i) => {
     const b = i * PRIM_STRIDE;
-    out[b] = o.kind; out[b + 1] = o.material; out[b + 2] = o.R; out[b + 3] = o.r;
-    out.set(o.a, b + 4); out.set(o.b, b + 8);
+    out[b] = p.kind; out[b + 1] = p.material; out[b + 2] = p.R; out[b + 3] = p.r;
+    out.set(p.a, b + 4); out[b + 7] = op;
+    out.set(p.b, b + 8); out[b + 11] = blend;
   });
   return out;
 }
