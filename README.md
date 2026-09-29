@@ -27,13 +27,13 @@ Teaching aids:
 
 It is a static site: WebGPU for rendering and TypeScript XPBD physics on the CPU. There are no runtime dependencies.
 
-Live: https://feldaher.github.io/yeast-jelly/
+Live: https://feldaher.github.io/jelly-cells/
 
 ## Run
 
 ```sh
 npm install
-npm run dev        # http://localhost:5173/yeast-jelly/
+npm run dev        # http://localhost:5173/jelly-cells/
 npm test           # Gherkin scenarios + unit tests (vitest)
 npm run build      # static site in dist/
 ```
@@ -63,11 +63,11 @@ The types every layer agrees on live in `src/contracts.ts`. Behaviour is specifi
 
 ## Deploy to GitHub Pages
 
-1. Create an empty repository `feldaher/yeast-jelly` on GitHub.
-2. `git remote add origin git@github.com:feldaher/yeast-jelly.git && git push -u origin main`
+1. Create an empty repository `feldaher/jelly-cells` on GitHub.
+2. `git remote add origin git@github.com:feldaher/jelly-cells.git && git push -u origin main`
 3. In the repo, go to **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 
-`.github/workflows/pages.yml` runs the tests, builds, and publishes on every push to `main`. The Vite `base` is `/yeast-jelly/`. If you rename the repo, change `base` in `vite.config.ts` to match.
+`.github/workflows/pages.yml` runs the tests, builds, and publishes on every push to `main`. The Vite `base` is `/jelly-cells/`. If you rename the repo, change `base` in `vite.config.ts` to match.
 
 ## Scale
 
