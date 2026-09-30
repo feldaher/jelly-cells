@@ -1,10 +1,10 @@
 // XPBD soft-body step: co-rotational tetrahedra (each pulled toward its best-fit
 // rotated rest shape) plus a volume constraint, floor friction, inter-piece
-// contact and damping of relative edge motion.
+// contact (particles kept out of other pieces' tets) and damping of relative edge motion.
 
 import type { Piece, SimMesh, SimParams } from '../contracts';
 import { applyGrab, type GrabState } from './grab';
-import { floorContact, PieceCollider } from './contact';
+import { floorContact, PieceCollider, SolidContact } from './contact';
 import { dampingRate, youngFor } from './params';
 import { extractRotation } from '../math/mat3';
 
@@ -19,6 +19,8 @@ export interface StepExtras {
 
 /** Ratio of the volume stiffness to the shape stiffness: close to incompressible. */
 const LAMBDA_OVER_MU = 100;
+/** Passes of the solid contact per substep (a pushed tet can shove another particle in). */
+const SOLID_ITERS = 2;
 /** Rotation-extraction iterations per substep (warm-started, so one is plenty). */
 const ROT_ITERS = 1;
 /** Warm-start rotation (quaternion) per tet, kept between substeps. */
@@ -52,6 +54,7 @@ function initialRotations(s: SimMesh): Float64Array {
   return out;
 }
 const collider = new PieceCollider(0.25);
+const solid = new SolidContact();
 
 export function step(pieces: Piece[], params: SimParams, dt: number, extra: StepExtras = {}) {
   const n = params.substeps, sdt = dt / n;
@@ -67,7 +70,10 @@ export function step(pieces: Piece[], params: SimParams, dt: number, extra: Step
     if (extra.grab) applyGrab(extra.grab, sdt);
     for (const p of pieces) solveTets(p.sim, mu, lambda, params.materialStiffness, sdt);
     extra.constrain?.(pieces, sdt);
-    if (extra.collide !== false) collider.solve(pieces, (extra.time ?? Infinity) + s * sdt);
+    if (extra.collide !== false) {
+      collider.solve(pieces, (extra.time ?? Infinity) + s * sdt);
+      for (let it = 0; it < SOLID_ITERS; it++) solid.solve(pieces);
+    }
     for (const p of pieces) {
       floorContact(p.sim, params.friction);
       updateVelocity(p.sim, sdt);
