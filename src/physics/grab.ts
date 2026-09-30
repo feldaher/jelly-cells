@@ -54,3 +54,20 @@ export function applyGrab(g: GrabState, sdt: number) {
     pos[3 * i + 2] += (tz - pos[3 * i + 2]) * s;
   }
 }
+
+/**
+ * The same grab moved onto another piece (a morph keyframe that replaced the one held):
+ * the particles near the grab point are taken, with their offsets expressed before the twist.
+ */
+export function regrab(g: GrabState, piece: Piece): GrabState {
+  const n = startGrab(piece, g.target);
+  const R = g.rot;
+  for (let k = 0; k < n.idx.length; k++) {
+    const o = n.offset.slice(3 * k, 3 * k + 3);
+    // offset = Rᵀ·(x − target)
+    n.offset[3 * k] = R[0] * o[0] + R[1] * o[1] + R[2] * o[2];
+    n.offset[3 * k + 1] = R[3] * o[0] + R[4] * o[1] + R[5] * o[2];
+    n.offset[3 * k + 2] = R[6] * o[0] + R[7] * o[1] + R[8] * o[2];
+  }
+  return { ...n, rot: g.rot, compliance: g.compliance };
+}

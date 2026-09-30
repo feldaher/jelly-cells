@@ -6,6 +6,7 @@ import type { World } from '../app/world';
 import { layoutLabels } from '../teach/labels';
 import { scaleBar } from '../teach/scale';
 import { wikiUrl } from '../teach/wiki';
+import { commonsPage, licenseUrl, micrograph } from '../teach/micrographs';
 import { notableEntries } from '../teach/section';
 import { materialHex, type Variety } from '../render/palette';
 import type { M4 } from '../math/mat4';
@@ -68,6 +69,14 @@ export class TeachUi {
     if (!on) this.hover = null;
   }
 
+  /** The label set changed under the same cell (a morph crossed half-way between stages). */
+  refreshLabels() {
+    const name = this.pinned?.name;
+    this.buildLabels();
+    const again = name && this.world.labels.find((l) => l.name === name);
+    if (again) this.openCard(again); else if (name) this.closeCard();
+  }
+
   private colorOf(l: Label): string {
     return l.material === undefined ? 'var(--ink)' : materialHex(this.variety, l.material);
   }
@@ -100,9 +109,26 @@ export class TeachUi {
     const wiki = $<HTMLAnchorElement>('card-wiki'), url = wikiUrl(l.name);
     wiki.hidden = !url;
     if (url) { wiki.href = url; wiki.title = decodeURIComponent(url.split('/wiki/')[1]).replace(/_/g, ' ') + ' on Wikipedia'; }
+    this.showMicrograph(l);
     $('card').style.setProperty('--c', this.colorOf(l));
     $('card').hidden = false;
     this.els.forEach((e) => e.box.classList.toggle('pinned', e.label === l));
+  }
+
+  /** The real image of the structure, with its credit line (author · licence · Commons page). */
+  private showMicrograph(l: Label) {
+    const m = micrograph(this.type.id, l.name);
+    $('card-fig').hidden = !m;
+    if (!m) return;
+    const img = $<HTMLImageElement>('card-img'), page = commonsPage(m);
+    img.src = import.meta.env.BASE_URL + m.src;
+    img.alt = `${m.modality} image: ${m.caption}`;
+    $<HTMLAnchorElement>('card-img-link').href = page;
+    $('card-mod').textContent = m.modality;
+    $('card-cap').textContent = m.caption;
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+    const lic = licenseUrl(m);
+    $('card-credit').innerHTML = `${esc(m.author)} · ${lic ? `<a href="${lic}" target="_blank" rel="noopener">${esc(m.license)}</a>` : esc(m.license)} · <a href="${page}" target="_blank" rel="noopener">Wikimedia Commons</a>`;
   }
 
   closeCard() {

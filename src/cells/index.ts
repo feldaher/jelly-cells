@@ -1,6 +1,7 @@
 // The cell types offered in the dropdown.
 
-import type { Anatomy, CellType, CellTypeId } from '../contracts';
+import type { Anatomy, CellType, CellTypeId, Label } from '../contracts';
+import { morphAnatomy } from '../anatomy/morph';
 import { yeast } from './yeast';
 import { rbc } from './rbc';
 import { fibroblast } from './fibroblast';
@@ -16,12 +17,23 @@ export function cellType(id: CellTypeId): CellType {
 }
 
 const cache = new Map<string, Anatomy>();
-/** The anatomy of a cell type at a stage, built once per seed. */
+/**
+ * The anatomy of a cell type at a stage. Whole stages are built once per seed;
+ * a fractional stage blends its two neighbours (see anatomy/morph.ts).
+ */
 export function anatomyOf(id: CellTypeId, seed = 7, stage?: number): Anatomy {
   const t = cellType(id);
-  const st = stage ?? t.defaultStage ?? 0;
+  const last = (t.stages?.length ?? 1) - 1;
+  const st = Math.max(0, Math.min(last, stage ?? t.defaultStage ?? 0));
+  const i = Math.floor(st);
+  if (st > i) return morphAnatomy(anatomyOf(id, seed, i), anatomyOf(id, seed, i + 1), st - i);
   const key = `${id}:${seed}:${st}`;
   let an = cache.get(key);
   if (!an) { an = t.build(seed, st); cache.set(key, an); }
   return an;
+}
+
+/** Labels at a (possibly fractional) stage: those of the nearest whole stage. */
+export function labelsAt(id: CellTypeId, seed: number, stage: number): Label[] {
+  return cellType(id).labels(anatomyOf(id, seed, Math.round(stage)));
 }

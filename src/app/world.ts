@@ -2,14 +2,15 @@
 
 import type { Anatomy, CellType, CellTypeId, CutChild, Label, Piece, Plane, SectionEntry, SimMesh, SkinMesh, Stats, Vec3, ViewMode } from '../contracts';
 import { deformationScalars } from '../teach/fields';
-import { anatomyOf, cellType } from '../cells';
+import { anatomyOf, cellType, labelsAt } from '../cells';
 import { buildPiece } from '../mesh/piece';
 import { TetGrid, updateSkin } from '../mesh/surface';
 import { paramsFor, UNIT_CM } from '../physics/params';
 import { pieceSdf } from '../anatomy/sdf';
 import { mergeReports, sectionReport } from '../teach/section';
 import { step } from '../physics/xpbd';
-import type { GrabState } from '../physics/grab';
+import { regrab, type GrabState } from '../physics/grab';
+import { applyKeyframe, buildKeyframe, KEYFRAME_DT, type MorphRequest } from './morph';
 import { currentVolume, restVolume } from '../physics/metrics';
 import { applyCut, buildChildren, findSplits, type SplitJob } from '../cut/cut';
 import type { CutRequest } from '../cut/worker';
@@ -32,8 +33,14 @@ export class World {
   labels: Label[] = [];
   params = paramsFor(cellType('yeast'));
   lastCut: CutReport | null = null;
-  /** Current life stage (index into type.stages). */
+  /** Current life stage (index into type.stages); fractional while morphing between two. */
   stage = 0;
+  /** Bumped whenever `an` changes under the same cell type (morph keyframes), so the renderer re-uploads it. */
+  anatomyVersion = 0;
+  /** Bumped whenever the label set changes during a morph. */
+  labelsVersion = 0;
+  private morph: { target: number; rate: number; token: number; pending: boolean; lastAt: number } | null = null;
+  private morphToken = 0;
   view: ViewMode = 'anatomy';
   pieces: Piece[] = [];
   grab: GrabState | null = null;
@@ -56,10 +63,11 @@ export class World {
   /** Swaps in another cell type (optionally at a stage), keeping the firmness and damping settings. */
   setCellType(id: CellTypeId, stage?: number) {
     const { firmness, damping } = this.params;
+    this.cancelMorph();
     this.type = cellType(id);
     this.stage = stage ?? this.type.defaultStage ?? 0;
     this.an = anatomyOf(id, 7, this.stage);
-    this.labels = this.type.labels(this.an);
+    this.labels = labelsAt(id, 7, this.stage);
     this.params = { ...paramsFor(this.type), firmness, damping };
     this.template = buildPiece(this.an, [], 0);
     this.lastCut = null;
@@ -67,6 +75,7 @@ export class World {
   }
 
   reset() {
+    this.cancelMorph();
     this.grab = null;
     this.knife = null; // any pending cut result is ignored
     const p = clonePiece(this.template, this.nextId++);
@@ -89,6 +98,94 @@ export class World {
     }
     if (n === 2) this.acc = Math.min(this.acc, DT);
     if (n) { this.stepMs = (performance.now() - t0) / n; this.refreshSkins(); }
+    if (n && this.morph) this.driveMorph();
+  }
+
+  /** True while the cell is morphing toward another stage. */
+  get morphing(): boolean { return this.morph !== null; }
+
+  /** Where the cell is heading: the morph's target, or the current stage. */
+  get stageTarget(): number { return this.morph?.target ?? this.stage; }
+
+  /**
+   * Morphs the intact cell toward a stage at `rate` stages per second of sim time.
+   * A cut cell (or one under the knife) is rebuilt whole at that stage instead.
+   */
+  morphTo(target: number, rate: number): 'morph' | 'rebuilt' | 'none' {
+    const n = this.type.stages?.length ?? 1;
+    target = Math.max(0, Math.min(n - 1, target));
+    if (this.pieces.length !== 1 || this.pieces[0].planes.length || this.knife) {
+      this.setCellType(this.type.id, target);
+      return 'rebuilt';
+    }
+    if (this.morph) { this.morph.target = target; this.morph.rate = rate; return 'morph'; }
+    if (target === this.stage) return 'none';
+    this.morph = { target, rate, token: ++this.morphToken, pending: false, lastAt: this.time - KEYFRAME_DT };
+    return 'morph';
+  }
+
+  cancelMorph() {
+    this.morph = null;
+    this.morphToken++;
+  }
+
+  /** Requests the next keyframe when the last one has landed (and, without a worker, enough time has passed). */
+  private driveMorph() {
+    const m = this.morph!;
+    if (m.pending) return;
+    const worker = this.morphWorker();
+    const dt = this.time - m.lastAt;
+    if (!worker && dt < KEYFRAME_DT) return;
+    const gap = m.target - this.stage;
+    const to = Math.abs(gap) <= m.rate * dt ? m.target : this.stage + Math.sign(gap) * m.rate * dt;
+    const old = this.pieces[0];
+    const req: MorphRequest = {
+      cellType: this.type.id, seed: this.an.seed, from: this.stage, to,
+      old: { restPos: old.sim.restPos, tets: old.sim.tets, restInv: old.sim.restInv, spacing: old.sim.spacing },
+    };
+    m.lastAt = this.time;
+    if (!worker) { this.swapKeyframe(old, to, buildKeyframe(req)); return; }
+    m.pending = true;
+    const token = m.token, id = ++this.requestId;
+    const onMessage = (e: MessageEvent<{ id: number; kf: CutChild }>) => {
+      if (e.data.id !== id) return;
+      worker.removeEventListener('message', onMessage);
+      if (this.morph?.token !== token) return;
+      this.morph.pending = false;
+      this.swapKeyframe(old, to, e.data.kf);
+    };
+    worker.addEventListener('message', onMessage);
+    worker.postMessage({ id, req });
+  }
+
+  /** Swaps a keyframe in for the piece it was built from; it carries on the old flesh's motion. */
+  private swapKeyframe(old: Piece, stage: number, kf: CutChild) {
+    if (this.pieces.length !== 1 || this.pieces[0] !== old) { this.cancelMorph(); return; }
+    this.template = clonePiece(kf.piece, 0);
+    const p = applyKeyframe(old, kf);
+    p.id = this.nextId++;
+    this.pieces = [p];
+    if (this.grab?.piece === old) this.grab = regrab(this.grab, p);
+    const before = Math.round(this.stage);
+    this.stage = stage;
+    this.an = anatomyOf(this.type.id, this.an.seed, stage);
+    this.anatomyVersion++;
+    if (Math.round(stage) !== before) { this.labels = labelsAt(this.type.id, this.an.seed, stage); this.labelsVersion++; }
+    this.restTotal = restVolume(p.sim);
+    if (stage === this.morph?.target) this.morph = null;
+    this.refreshSkins();
+  }
+
+  private morphWorkerRef: Worker | null | undefined;
+  private morphWorker(): Worker | null {
+    if (this.morphWorkerRef === undefined) {
+      try {
+        this.morphWorkerRef = typeof Worker === 'undefined' ? null : new Worker(new URL('./morphWorker.ts', import.meta.url), { type: 'module' });
+      } catch {
+        this.morphWorkerRef = null;
+      }
+    }
+    return this.morphWorkerRef;
   }
 
   private fixedStep() {
@@ -166,6 +263,7 @@ export class World {
     }
     const mid = (lo + hi) / 2;
     const centre: Vec3 = [n[0] * plane.d + along[0] * mid, 0, n[2] * plane.d + along[2] * mid];
+    this.cancelMorph(); // the knife works on the cell as it is now
     const knife = startKnife(plane, jobs.map((j) => j.parent), along, centre, Math.max(8, hi - lo + 2.5));
     this.knife = knife;
     this.buildCut(knife, jobs);

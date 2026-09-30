@@ -55,17 +55,22 @@ export interface Ellipsoid {
   radii: Vec3;
 }
 
-/** One term of the body SDF, combined in order with the running result. */
+/**
+ * One term of the body SDF, combined in order with the running result.
+ * 'morph' starts a second body: parts before it are body A, it and the parts after it
+ * are body B, and the cell is (1 − t)·A + t·B with t = this part's `blend`.
+ * At most one 'morph' part per body.
+ */
 export interface BodyPart {
   prim: Primitive;
-  op: 'union' | 'subtract';
-  /** Smooth blend radius (sim units); 0 = hard. */
+  op: 'union' | 'subtract' | 'morph';
+  /** Smooth blend radius (sim units); 0 = hard. For 'morph', the interpolation weight t ∈ [0, 1]. */
   blend: number;
 }
 
 export interface Anatomy {
   cellType: CellTypeId;
-  /** Index into the cell type's stages (0 when it has none). */
+  /** Position in the cell type's stages (0 when it has none); fractional between two stages while morphing. */
   stage: number;
   /** The outer body: parts are combined in order (the first one's op is ignored). */
   body: BodyPart[];
@@ -107,6 +112,7 @@ export interface CellType {
   tagline: string[];
   /** How many µm one sim unit stands for. */
   umPerUnit: number;
+  /** The anatomy at an integer stage. Fractional stages come from `anatomyOf`, which morphs neighbours. */
   build(seed?: number, stage?: number): Anatomy;
   /** Optional life stages a slider can step through (e.g. the yeast cell cycle). */
   stages?: Stage[];
@@ -123,6 +129,19 @@ export interface CellType {
   camera: { dist: number; yaw: number; pitch: number };
   help: string;
   about: string;
+}
+
+/** A real image of a labelled structure, from Wikimedia Commons, shown on its label card. */
+export interface Micrograph {
+  /** Path under the site root, e.g. "micrographs/yeast-nucleus.jpg". */
+  src: string;
+  /** Commons file title, e.g. "File:Yeast membrane proteins.jpg". */
+  commons: string;
+  author: string;
+  license: 'Public domain' | 'CC0' | 'CC BY 2.0' | 'CC BY 2.5' | 'CC BY 3.0' | 'CC BY 4.0' | 'CC BY-SA 2.0' | 'CC BY-SA 2.5' | 'CC BY-SA 3.0' | 'CC BY-SA 4.0';
+  modality: 'TEM' | 'SEM' | 'Freeze-fracture EM' | 'Cryo-ET' | 'Fluorescence' | 'Confocal' | 'Two-photon' | 'Light' | 'Phase contrast' | 'DIC';
+  /** What the image shows and in what organism/tissue. */
+  caption: string;
 }
 
 /** One organelle type met by a knife cut. */

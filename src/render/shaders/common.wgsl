@@ -65,16 +65,24 @@ fn smaxPoly(a: f32, b: f32, k: f32) -> f32 { return -sminPoly(-a, -b, k); }
 
 fn bodyCount() -> u32 { return u32(cell.k.y + 0.5); }
 
-/** The body: parts combined in order by smooth union (a.w = 0) or subtraction (a.w = 1). */
+/**
+ * The body: parts combined in order by smooth union (a.w = 0) or subtraction (a.w = 1).
+ * A morph part (a.w = 2) closes body A and starts body B; the result is mix(A, B, t), t = b.w.
+ */
 fn cellSdf(p: vec3f) -> f32 {
   var d = primSdf(0u, p);
+  var dA = 0.0;
+  var t = -1.0;
   let n = bodyCount();
   for (var i = 1u; i < n; i++) {
     let q = primSdf(i, p);
+    let op = prims[i].a.w;
     let k = max(prims[i].b.w, 1e-4);
-    if (prims[i].a.w < 0.5) { d = sminPoly(d, q, k); } else { d = smaxPoly(d, -q, k); }
+    if (op > 1.5) { dA = d; t = prims[i].b.w; d = q; }
+    else if (op < 0.5) { d = sminPoly(d, q, k); } else { d = smaxPoly(d, -q, k); }
   }
-  return d;
+  if (t < 0.0) { return d; }
+  return mix(dA, d, t);
 }
 
 fn isHidden(m: f32) -> bool { return ((u32(F.params.w + 0.5) >> u32(m + 0.5)) & 1u) == 1u; }

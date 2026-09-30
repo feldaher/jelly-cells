@@ -58,16 +58,21 @@ export function primSdf(p: Primitive, x: number, y: number, z: number): number {
   return Infinity;
 }
 
-/** The whole cell: its body parts combined in order by smooth union / subtraction. */
+/**
+ * The whole cell: its body parts combined in order by smooth union / subtraction.
+ * A 'morph' part closes the body so far (A) and starts a second one (B); the result is (1 − t)·A + t·B.
+ */
 export function cellSdf(an: Anatomy, x: number, y: number, z: number): number {
   const body = an.body;
   let d = primSdf(body[0].prim, x, y, z);
+  let dA = 0, t = -1;
   for (let i = 1; i < body.length; i++) {
     const b = body[i], p = primSdf(b.prim, x, y, z);
-    if (b.op === 'union') d = b.blend > 0 ? smin(d, p, b.blend) : Math.min(d, p);
+    if (b.op === 'morph') { dA = d; t = b.blend; d = p; }
+    else if (b.op === 'union') d = b.blend > 0 ? smin(d, p, b.blend) : Math.min(d, p);
     else d = b.blend > 0 ? smax(d, -p, b.blend) : Math.max(d, -p);
   }
-  return d;
+  return t < 0 ? d : dA + (d - dA) * t;
 }
 
 /** Axis-aligned box around a primitive. */
@@ -93,9 +98,9 @@ export function primBounds(p: Primitive): { lo: Vec3; hi: Vec3 } {
 export function bodyBounds(body: BodyPart[]): { lo: Vec3; hi: Vec3 } {
   const lo: Vec3 = [Infinity, Infinity, Infinity], hi: Vec3 = [-Infinity, -Infinity, -Infinity];
   body.forEach((b, i) => {
-    if (i > 0 && b.op !== 'union') return;
-    const bb = primBounds(b.prim);
-    for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], bb.lo[k] - b.blend); hi[k] = Math.max(hi[k], bb.hi[k] + b.blend); }
+    if (i > 0 && b.op === 'subtract') return;
+    const bb = primBounds(b.prim), pad = b.op === 'morph' ? 0 : b.blend;
+    for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], bb.lo[k] - pad); hi[k] = Math.max(hi[k], bb.hi[k] + pad); }
   });
   return { lo, hi };
 }
@@ -134,10 +139,11 @@ export function materialAt(an: Anatomy, x: number, y: number, z: number, wallDep
 
 /**
  * Packs body parts then organelles as [kind, material, R, r, a.xyz, op, b.xyz, blend]
- * for the GPU storage buffer (op: 0 union, 1 subtract).
+ * for the GPU storage buffer (op: 0 union, 1 subtract, 2 morph).
  */
+const OP_CODE = { union: 0, subtract: 1, morph: 2 } as const;
 export function packAnatomyGPU(an: Anatomy): Float32Array {
-  const all = [...an.body.map((b) => ({ p: b.prim, op: b.op === 'union' ? 0 : 1, blend: b.blend })), ...an.organelles.map((p) => ({ p, op: 0, blend: 0 }))];
+  const all = [...an.body.map((b) => ({ p: b.prim, op: OP_CODE[b.op], blend: b.blend })), ...an.organelles.map((p) => ({ p, op: 0, blend: 0 }))];
   const out = new Float32Array(all.length * PRIM_STRIDE);
   all.forEach(({ p, op, blend }, i) => {
     const b = i * PRIM_STRIDE;

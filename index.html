@@ -36,8 +36,8 @@
       <label class="label" for="cell-type">Cell</label>
       <div class="select"><select id="cell-type"></select></div>
       <div class="stage" id="stage-group" hidden>
-        <div class="slider-head"><span class="label" id="stage-label">Stage</span><output id="stage-title"></output></div>
-        <input type="range" id="cycle" min="0" max="4" step="1" value="2" aria-label="Stage" />
+        <div class="slider-head"><span class="stage-name"><button id="stage-play" class="play" aria-pressed="false" aria-label="Play through the stages" title="Play (P)"><svg viewBox="0 0 12 12" aria-hidden="true"><path class="i-play" d="M3 1.8v8.4L10 6z"/><path class="i-pause" d="M2.6 1.8h2.4v8.4H2.6zM7 1.8h2.4v8.4H7z"/></svg></button><span class="label" id="stage-label">Stage</span></span><output id="stage-title"></output></div>
+        <input type="range" id="cycle" min="0" max="4" step="any" value="2" aria-label="Stage" />
         <div class="ticks" id="stage-ticks"></div>
         <p class="stage-blurb" id="stage-blurb"></p>
       </div>
@@ -114,6 +114,11 @@
   <aside class="card" id="card" hidden>
     <div class="card-head"><h2 id="card-name"></h2><button id="card-close" class="x" aria-label="Close">×</button></div>
     <p class="card-size" id="card-size"></p>
+    <figure class="card-fig" id="card-fig" hidden>
+      <a id="card-img-link" target="_blank" rel="noopener"><img id="card-img" alt="" loading="lazy" decoding="async" /></a>
+      <figcaption><span class="card-mod" id="card-mod"></span> <span id="card-cap"></span></figcaption>
+      <p class="card-credit" id="card-credit"></p>
+    </figure>
     <p id="card-blurb"></p>
     <a class="card-wiki" id="card-wiki" target="_blank" rel="noopener" hidden>Read more on Wikipedia <span aria-hidden="true">↗</span></a>
   </aside>
@@ -124,8 +129,9 @@
     </div>
   </div>
 
-  <details class="inside">
-    <summary>Inside the experiment <span>+</span></summary>
+  <button id="inside-open" class="inside-open" aria-haspopup="dialog">Inside the experiment <span aria-hidden="true">+</span></button>
+  <dialog class="inside" id="inside" aria-labelledby="inside-title">
+    <div class="inside-head"><h2 id="inside-title">Inside the experiment</h2><button id="inside-close" class="x" aria-label="Close">×</button></div>
     <div class="inside-body">
       <h3>The specimen</h3>
       <p id="about"></p>
@@ -140,9 +146,26 @@
       <p>The skin and the organelles (nucleus, nucleolus, vacuoles, a cortical mitochondrial network, the septin ring) are separate meshes. Each vertex is pinned to a tetrahedron by barycentric weights, so they all wobble together. Every vertex also remembers its rest position. A knife face looks up the anatomy's distance fields at that position, so it shows an exact section through whatever organelle lies in the plane, membranes included.</p>
       <h3>Light through jelly</h3>
       <p>WGSL shaders draw the floor, organelles and knife first. Then, piece by piece from back to front, they draw the jelly's back faces to measure how much cytoplasm each view ray crosses. The front faces refract what lies behind by that thickness and absorb it with Beer–Lambert colour. They add a milky wall film, a thin-edge glow, Fresnel reflections of a procedural studio and GGX highlights.</p>
+      <h3>Growing between stages</h3>
+      <p>Press ▶ (or drag the stage slider) and the cell morphs from one stage to the next. Between stages <i>i</i> and <i>i</i>+1 the body's signed distance is blended,</p>
+      <div class="eq">d<sub>s</sub>(<b>x</b>) = (1 − t) d<sub>i</sub>(<b>x</b>) + t d<sub>i+1</sub>(<b>x</b>),&ensp; t = s − i,</div>
+      <p>so new flesh appears first where it is nearest the old surface: a bud swells out of the mother, an axon regrows from its stump. Organelles are matched one to one, and one without a partner grows out of (or shrinks into) its nearest relative, so the daughter nucleus leaves the mother's. A worker thread keeps re-meshing the cell a little further along. Each new particle at rest point <b>X</b> starts at the old flesh it pulls back to,</p>
+      <div class="eq"><b>Y</b> = <b>X</b> − (d<sub>s</sub>(<b>X</b>) − d<sub>s′</sub>(<b>X</b>)) ∇d<sub>s</sub>(<b>X</b>),</div>
+      <p>so the new mesh begins in the old shape and its own elasticity pulls it into the new one. The growth is carried by the same physics as a poke, and the Deformation view shows it.</p>
+      <h3>The equations</h3>
+      <p>Each frame (Δt = 1/60 s) is split into 12 substeps of h = Δt/12. Particles first move freely under gravity:</p>
+      <div class="eq"><b>v</b> ← <b>v</b> + h<b>g</b>,&ensp; <b>x</b> ← <b>x</b> + h<b>v</b>.</div>
+      <p>Each tetrahedron's deformation gradient is F = D<sub>s</sub> D<sub>m</sub><sup>−1</sup>, where the columns of D are its edge vectors now (s) and at rest (m). Two constraints act on it: shape, C<sub>D</sub> = ‖F − R‖<sub>F</sub>, where R is the rotation part of F (extracted iteratively and warm-started), and volume, C<sub>H</sub> = det F − 1. Together they are the energy per unit rest volume</p>
+      <div class="eq">ψ = μ‖F − R‖<sub>F</sub><sup>2</sup> + ½λ(det F − 1)<sup>2</sup>,&ensp; μ = E/3,&ensp; λ = 100 μ,</div>
+      <p>which is nearly incompressible. E = E<sub>0</sub>·10<sup>1.8(f − 0.4)</sup> runs from 0.19× to 12× its default across the firmness slider f, and each material scales μ and λ by its own factor k (4× for the yeast wall). Each constraint is projected once per substep in the XPBD form, with compliance α = 1/(2μkV) for shape and 1/(λkV) for volume, V being the tet's rest volume:</p>
+      <div class="eq">Δλ = −C / ( Σ<sub>j</sub> w<sub>j</sub> ‖∇<sub>j</sub>C‖<sup>2</sup> + α/h<sup>2</sup> ),&ensp; Δ<b>x</b><sub>j</sub> = w<sub>j</sub> ∇<sub>j</sub>C Δλ,</div>
+      <p>where w<sub>j</sub> is the inverse mass and λ starts from zero each substep. Volume is solved before and after shape. Velocities are then read back from positions, <b>v</b> = (<b>x</b> − <b>x</b><sub>prev</sub>)/h. Along every mesh edge the relative normal velocity is reduced by a factor 1 − e<sup>−ch</sup>, with c = 1 + 260 d<sup>2</sup> s<sup>−1</sup> for damping d, so the wobble dies away while the cell still falls and tumbles freely.</p>
+      <p>The Deformation view shows the Green–Lagrange strain, which ignores rotation,</p>
+      <div class="eq">E = ½(F<sup>T</sup>F − I),&ensp; shown as ‖E‖<sub>F</sub>, full colour at 30%.</div>
+      <p class="refs">XPBD: Macklin, Müller &amp; Chentanez, <i>MIG</i> 2016. Substepping: Macklin et al., <i>SCA</i> 2019. Rotation extraction: Müller et al., <i>MIG</i> 2016.</p>
       <p class="credit">After “Melon Jelly” (Material Studies No. 009). Anatomy is stylised but proportioned after <i>S. cerevisiae</i>.</p>
     </div>
-  </details>
+  </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="fallback" id="fallback" hidden>

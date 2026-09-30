@@ -4,6 +4,7 @@ import { STRAIN_FULL } from './teach/fields';
 import { CELL_TYPES } from './cells';
 import { TeachUi } from './ui/teach';
 import { World } from './app/world';
+import { MORPH_RATE } from './app/morph';
 import { raycast, rayPlane, screenRay, type Ray } from './app/pick';
 import { startGrab } from './physics/grab';
 import { axisAngleMat } from './math/mat3';
@@ -23,6 +24,8 @@ const help = (w: World) => ({
   knife: '<b>Knife</b>Draw a stroke across the cell. The blade comes down along it and splits every piece it crosses. Then turn the halves over and look at the faces.',
 });
 let teach: TeachUi;
+/** True while the stage slider is being dragged, so the morph does not move it under the finger. */
+let scrubbing = false;
 
 let tool: 'hand' | 'knife' = 'hand';
 let variety: Variety = VARIETIES[0];
@@ -88,12 +91,16 @@ async function main() {
   setupInput(world, renderer);
 
   let last = performance.now(), frame = 0;
+  let seenAnatomy = world.anatomyVersion, seenLabels = world.labelsVersion, morphShown = false;
   const debug = new URLSearchParams(location.search).has('debug');
   const loop = (now: number) => {
     aspect = renderer.aspect;
     const dt = (now - last) / 1000;
     last = now;
     world.update(dt);
+    if (world.anatomyVersion !== seenAnatomy) { seenAnatomy = world.anatomyVersion; renderer.setAnatomy(world.an); }
+    if (world.labelsVersion !== seenLabels) { seenLabels = world.labelsVersion; teach.refreshLabels(); }
+    if (world.morphing || morphShown) { morphShown = world.morphing; followStage(world); }
     // follow the pieces, gently
     const c = world.centre();
     const k = 1 - Math.exp(-dt * 2.5);
@@ -149,9 +156,22 @@ function showStage(world: World) {
   $('stage-label').textContent = world.type.stageLabel ?? 'Stage';
   input.setAttribute('aria-label', world.type.stageLabel ?? 'Stage');
   input.max = String(stages.length - 1);
-  input.value = String(world.stage);
-  $('stage-ticks').innerHTML = stages.map((st, i) => `<span style="--at:${(100 * i) / (stages.length - 1)}%;--shift:${i === 0 ? '0' : i === stages.length - 1 ? '-100%' : '-50%'}" class="${i === world.stage ? 'on' : ''}">${st.name}</span>`).join('');
-  previewStage(world, world.stage);
+  $('stage-ticks').innerHTML = stages.map((st, i) => `<span style="--at:${(100 * i) / (stages.length - 1)}%;--shift:${i === 0 ? '0' : i === stages.length - 1 ? '-100%' : '-50%'}">${st.name}</span>`).join('');
+  followStage(world);
+}
+
+/** Moves the slider, ticks, title and play button with the (possibly fractional) stage. */
+function followStage(world: World) {
+  if (!world.type.stages) return;
+  const input = $<HTMLInputElement>('cycle');
+  if (!scrubbing) input.value = String(world.stage);
+  const near = Math.round(world.stage);
+  $('stage-ticks').querySelectorAll('span').forEach((s, i) => s.classList.toggle('on', i === near));
+  previewStage(world, near);
+  const play = $('stage-play');
+  play.classList.toggle('on', world.morphing);
+  play.setAttribute('aria-pressed', String(world.morphing));
+  play.title = world.morphing ? 'Pause the morph (P)' : `Play the ${(world.type.stageLabel ?? 'stages').toLowerCase()} (P)`;
 }
 
 function previewStage(world: World, i: number) {
@@ -188,22 +208,47 @@ function setupUi(world: World, renderer: Renderer) {
   $('labels-btn').addEventListener('click', () => teach.toggleLabels());
 
   const stageInput = $<HTMLInputElement>('cycle');
-  const setStage = async (i: number) => {
-    if (i === world.stage) return;
-    statusText.textContent = 'WebGPU · Building';
-    await new Promise((r) => setTimeout(r, 20));
-    world.setCellType(world.type.id, i);
-    renderer.setAnatomy(world.an);
-    teach.setType(world.type, variety);
-    showStage(world);
+  const whole = () => world.pieces.length === 1 && world.pieces[0].planes.length === 0 && !world.knife;
+  /** Morphs the whole cell to a stage; a cut cell is rebuilt whole at that stage. */
+  const setStage = async (s: number, rate = MORPH_RATE.step) => {
+    if (!whole()) {
+      statusText.textContent = 'WebGPU · Building';
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    if (world.morphTo(s, rate) === 'rebuilt') {
+      renderer.setAnatomy(world.an);
+      teach.setType(world.type, variety);
+      showStage(world);
+    }
+    followStage(world);
     statusText.textContent = world.paused ? 'WebGPU · Paused' : 'WebGPU · Live';
   };
-  stageInput.addEventListener('input', () => previewStage(world, Number(stageInput.value)));
-  stageInput.addEventListener('change', () => setStage(Number(stageInput.value)));
+  // dragging scrubs the morph; letting go settles on the nearest stage
+  stageInput.addEventListener('pointerdown', () => { scrubbing = true; });
+  window.addEventListener('pointerup', () => { scrubbing = false; });
+  stageInput.addEventListener('input', () => {
+    const v = Number(stageInput.value);
+    if (whole()) setStage(v); else previewStage(world, Math.round(v));
+  });
+  stageInput.addEventListener('change', () => setStage(Math.round(Number(stageInput.value))));
   const stepStage = (d: number) => {
     const n = world.type.stages?.length ?? 0;
-    if (n) setStage(Math.max(0, Math.min(n - 1, world.stage + d)));
+    if (n) setStage(Math.max(0, Math.min(n - 1, Math.round(world.stageTarget) + d)));
   };
+  const play = () => {
+    const n = world.type.stages?.length ?? 0;
+    if (!n) return;
+    if (world.morphing) { world.cancelMorph(); followStage(world); return; }
+    if (world.stage >= n - 1) {
+      // back to the start, then play through
+      world.setCellType(world.type.id, 0);
+      renderer.setAnatomy(world.an);
+      teach.setType(world.type, variety);
+      showStage(world);
+    }
+    setStage(n - 1, MORPH_RATE.play);
+  };
+  $('stage-play').addEventListener('click', play);
 
   document.querySelectorAll<HTMLButtonElement>('.view').forEach((b) => b.addEventListener('click', () => {
     const v = b.dataset.view as ViewMode;
@@ -247,6 +292,11 @@ function setupUi(world: World, renderer: Renderer) {
   bindSlider('damp', (x) => (world.params.damping = x));
   $('nudge').addEventListener('click', () => world.nudge());
   $('reset').addEventListener('click', () => world.reset());
+  const inside = $<HTMLDialogElement>('inside');
+  $('inside-open').addEventListener('click', () => inside.showModal());
+  $('inside-close').addEventListener('click', () => inside.close());
+  // a click on the backdrop (outside the box) closes it too
+  inside.addEventListener('click', (e) => { if (e.target === inside) inside.close(); });
   $<HTMLInputElement>('slow').addEventListener('change', (e) => (world.slow = (e.target as HTMLInputElement).checked));
   $<HTMLInputElement>('mesh').addEventListener('change', (e) => (showMesh = (e.target as HTMLInputElement).checked));
   const pause = $('pause');
@@ -256,7 +306,7 @@ function setupUi(world: World, renderer: Renderer) {
     statusText.textContent = world.paused ? 'WebGPU · Paused' : 'WebGPU · Live';
   });
   window.addEventListener('keydown', (e) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || inside.open) return;
     if (e.key === ' ') { e.preventDefault(); pause.click(); }
     if (e.key === 'h') (document.querySelector('[data-tool="hand"]') as HTMLButtonElement).click();
     if (e.key === 'k') (document.querySelector('[data-tool="knife"]') as HTMLButtonElement).click();
@@ -265,6 +315,7 @@ function setupUi(world: World, renderer: Renderer) {
     if (e.key === 'l') teach.toggleLabels();
     if (e.key === '[') stepStage(-1);
     if (e.key === ']') stepStage(1);
+    if (e.key === 'p') play();
     if (e.key === 'Escape') teach.closeCard();
   });
 }
