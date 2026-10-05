@@ -13,6 +13,8 @@ Feature: A gallery of cell types
     Examples:
       | type       |
       | yeast      |
+      | pombe      |
+      | ecoli      |
       | rbc        |
       | fibroblast |
       | microglia  |
@@ -28,6 +30,8 @@ Feature: A gallery of cell types
     Examples:
       | type       |
       | yeast      |
+      | pombe      |
+      | ecoli      |
       | rbc        |
       | fibroblast |
       | microglia  |
@@ -41,6 +45,8 @@ Feature: A gallery of cell types
 
     Examples:
       | type       |
+      | pombe      |
+      | ecoli      |
       | rbc        |
       | fibroblast |
       | microglia  |

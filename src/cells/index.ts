@@ -3,12 +3,14 @@
 import type { Anatomy, CellType, CellTypeId, Label } from '../contracts';
 import { morphAnatomy } from '../anatomy/morph';
 import { yeast } from './yeast';
+import { pombe } from './pombe';
+import { ecoli } from './ecoli';
 import { rbc } from './rbc';
 import { fibroblast } from './fibroblast';
 import { microglia } from './microglia';
 import { neuron } from './neuron';
 
-export const CELL_TYPES: CellType[] = [yeast, rbc, fibroblast, microglia, neuron];
+export const CELL_TYPES: CellType[] = [yeast, pombe, ecoli, rbc, fibroblast, microglia, neuron];
 
 export function cellType(id: CellTypeId): CellType {
   const t = CELL_TYPES.find((c) => c.id === id);

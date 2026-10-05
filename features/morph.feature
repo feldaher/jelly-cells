@@ -11,6 +11,8 @@ Feature: Stages morph smoothly
     Examples:
       | type       |
       | yeast      |
+      | pombe      |
+      | ecoli      |
       | rbc        |
       | fibroblast |
       | microglia  |
@@ -25,6 +27,8 @@ Feature: Stages morph smoothly
     Examples:
       | type       |
       | yeast      |
+      | pombe      |
+      | ecoli      |
       | rbc        |
       | fibroblast |
       | microglia  |

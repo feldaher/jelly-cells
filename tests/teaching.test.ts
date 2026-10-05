@@ -77,6 +77,25 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
     });
   });
 
+  Scenario('Labels near the edge of a phone screen stay on it without overlapping', ({ Given, When, Then, And }) => {
+    let anchors: { x: number; y: number }[] = [], boxes: Box[] = [];
+    Given('labels anchored close to the left edge of a 390 pixel wide screen', () => {
+      anchors = Array.from({ length: 8 }, (_, i) => ({ x: 70 + (i % 2) * 30, y: 380 + i * 8 }));
+    });
+    When('the labels are laid out inside the screen', () => {
+      boxes = layoutLabels(anchors, { x: 195, y: 420 }, anchors.map(() => ({ w: 110, h: 22 })), { left: 8, right: 382 });
+    });
+    Then("every label box lies within the screen's width", () => {
+      for (const b of boxes) { expect(b.x).toBeGreaterThanOrEqual(8); expect(b.x + b.w).toBeLessThanOrEqual(382); }
+    });
+    And('no two label boxes overlap', () => {
+      for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i], b = boxes[j];
+        expect(a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h).toBe(false);
+      }
+    });
+  });
+
   ScenarioOutline('Every label links to Wikipedia', ({ Given, When, Then }, v) => {
     let names: string[] = [];
     Given('the <cell> cell type', () => { ct = cellType(v.cell); });

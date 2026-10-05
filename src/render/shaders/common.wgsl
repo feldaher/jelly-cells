@@ -11,7 +11,7 @@ struct Frame {
   proj: vec4f,       // P[2][2], P[3][2], near, far
   params: vec4f,     // time, organelle count, highlighted material (-1 none), hidden-material bitmask
   palette: array<vec4f, 6>,
-  mats: array<vec4f, 16>,
+  mats: array<vec4f, 24>,
 };
 // palette: 0 absorb | 1 scatter (w density) | 2 background | 3 membrane (w strength)
 //          4 (refraction, emissive, gloss, view: 0 anatomy 1 deformation) | 5 ink.   mats[m] = colour of material m.
@@ -54,6 +54,18 @@ fn primSdf(i: u32, p: vec3f) -> f32 {
     let pa = p - pr.a.xyz;
     let h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
     return length(pa - ba * h) - mix(pr.h.z, pr.h.w, h);
+  }
+  if (kind == 4u) {
+    // a flat washer: |b| is the half-thickness, b/|b| the axis, R outer and r inner radius
+    let ht = max(length(pr.b.xyz), 1e-9);
+    let u = pr.b.xyz / ht;
+    let q = p - pr.a.xyz;
+    let h = dot(q, u);
+    let rad = length(q - h * u);
+    var dx = rad - pr.h.z;
+    if (pr.h.w > 0.0) { dx = max(dx, pr.h.w - rad); }
+    let d = vec2f(dx, abs(h) - ht);
+    return length(max(d, vec2f(0.0))) + min(max(d.x, d.y), 0.0);
   }
   let q = p - pr.a.xyz;
   let h = dot(q, pr.b.xyz);

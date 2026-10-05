@@ -20,12 +20,25 @@ export const Mat = {
   Adhesion: 9,
   Lysosome: 10,
   ER: 11,
+  /** Bacterial chromosome (no envelope around it). */
+  Nucleoid: 12,
+  /** Microtubules: interphase bundles, the mitotic spindle, the centrosome. */
+  Spindle: 13,
+  /** The cytokinetic ring: actomyosin in yeasts, FtsZ in bacteria. */
+  Ring: 14,
+  /** New cell wall laid down across the cell at division. */
+  Septum: 15,
+  Golgi: 16,
+  /** Chemoreceptor array. */
+  Receptor: 17,
 } as const;
 export type Material = (typeof Mat)[keyof typeof Mat];
-export const MATERIAL_COUNT = 12;
+export const MATERIAL_COUNT = 18;
+/** Colour slots for materials in the GPU frame uniform (see common.wgsl). */
+export const MATERIAL_SLOTS = 24;
 
 /** Primitive kinds. The numeric values are shared with the WGSL shaders. */
-export const Prim = { Ellipsoid: 0, Capsule: 1, Torus: 2, Cone: 3 } as const;
+export const Prim = { Ellipsoid: 0, Capsule: 1, Torus: 2, Cone: 3, Disc: 4 } as const;
 export type PrimKind = (typeof Prim)[keyof typeof Prim];
 
 /**
@@ -34,6 +47,8 @@ export type PrimKind = (typeof Prim)[keyof typeof Prim];
  *  Capsule:   a = start,  b = end, r = radius
  *  Torus:     a = centre, b = unit axis, R = major radius, r = minor radius
  *  Cone:      a = start,  b = end, R = radius at a, r = radius at b (rounded ends)
+ *  Disc:      a = centre, b = axis scaled to the half-thickness, R = outer radius, r = inner radius
+ *             (a flat washer; r = 0 makes it a full disc)
  */
 export interface Primitive {
   kind: PrimKind;
@@ -87,9 +102,14 @@ export interface Anatomy {
   /** Tubular organelles as polylines (their capsules are also in `organelles`). */
   tubules: { points: Vec3[]; radius: number; material: Material }[];
   seed: number;
+  /**
+   * Set on the stage at which the cell has just divided: the rest-space plane through the
+   * bridge that still joins the daughters. The world splits the cell along it.
+   */
+  fission?: Plane;
 }
 
-export type CellTypeId = 'yeast' | 'rbc' | 'fibroblast' | 'microglia' | 'neuron';
+export type CellTypeId = 'yeast' | 'pombe' | 'ecoli' | 'rbc' | 'fibroblast' | 'microglia' | 'neuron';
 
 /** A teaching label pinned to a point inside the cell. */
 export interface Label {

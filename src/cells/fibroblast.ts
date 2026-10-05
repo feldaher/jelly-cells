@@ -1,6 +1,9 @@
 // A fibroblast spread on a surface: a thin lamella with a nuclear hump, a
 // leading-edge lamellipodium and a trailing tail. Stress fibres run along its
 // base and end in focal adhesions. Drawn ≈ 4× smaller than life.
+// The Golgi and centrosome sit beside the nucleus and swing to its front when the cell
+// polarises (Kupfer et al. 1982), with the nucleus pulled rearward (Gomes et al. 2005);
+// adhesion lengths follow Goffin et al. 2006.
 
 import { Mat, type Anatomy, type BodyPart, type CellType, type Label, type Stage, type Vec3 } from '../contracts';
 import { rng } from '../math/mat3';
@@ -10,8 +13,8 @@ import { addTubule, cone, ell, finish, lerp3, union, wander } from './common';
 export const STAGES: Stage[] = [
   { name: 'Round', title: 'Rounded', blurb: 'Just landed in the wound bed: round, with a thin skirt of membrane feeling for the matrix. Only small nascent adhesions so far.' },
   { name: 'Spread', title: 'Spreading', blurb: 'The cell flattens into a pancake. Adhesions mature at its edge and radial actin fibres begin to pull on them.' },
-  { name: 'Migrate', title: 'Migrating', blurb: 'Polarised and crawling into the wound: a leading lamellipodium, a trailing tail, and stress fibres anchored in focal adhesions.' },
-  { name: 'Myofib.', title: 'Myofibroblast', blurb: 'Under tension and TGF-β the fibroblast becomes a myofibroblast: thick α-smooth-muscle-actin fibres and large "supermature" adhesions pull the wound closed. If it persists, fibrosis and scarring follow.' },
+  { name: 'Migrate', title: 'Migrating', blurb: 'Polarised and crawling into the wound: a leading lamellipodium, a trailing tail, and stress fibres anchored in focal adhesions. The nucleus has moved to the rear, leaving the centrosome and Golgi in front of it, facing the wound.' },
+  { name: 'Myofib.', title: 'Myofibroblast', blurb: 'Under tension and TGF-β the fibroblast becomes a myofibroblast: thick α-smooth-muscle-actin fibres anchored in "supermature" adhesions 8–30 µm long pull the wound closed. If it persists, fibrosis and scarring follow.' },
 ];
 
 interface Plan {
@@ -21,17 +24,22 @@ interface Plan {
   midY: number;
   fibres: 'none' | 'radial' | 'parallel' | 'thick';
   flatMito: boolean;
+  /** Direction (angle in the xz plane, 0 = the leading edge) in which the Golgi and centrosome lie from the nucleus. */
+  golgi: number;
 }
+
+/** Where the Golgi points before the cell has a front: any direction will do. */
+const UNPOLARISED = 2.2;
 
 function planFor(stage: number): Plan {
   switch (stage) {
     case 0: return {
       body: [union(ell([0, 1.75, 0], [2.3, 1.7, 2.3])), union(ell([0, 0.32, 0], [3.0, 0.32, 3.0]), 0.8)],
-      nucleus: { c: [0, 1.8, 0], r: [1.2, 1.0, 1.1] }, midY: 0.32, fibres: 'none', flatMito: false,
+      nucleus: { c: [0, 1.8, 0], r: [1.2, 1.0, 1.1] }, midY: 0.32, fibres: 'none', flatMito: false, golgi: UNPOLARISED,
     };
     case 1: return {
       body: [union(ell([0, 0.45, 0], [3.8, 0.45, 3.6])), union(ell([0, 0.8, 0], [1.7, 0.8, 1.5]), 0.8)],
-      nucleus: { c: [0, 0.8, 0], r: [1.4, 0.52, 1.15] }, midY: 0.45, fibres: 'radial', flatMito: true,
+      nucleus: { c: [0, 0.8, 0], r: [1.4, 0.52, 1.15] }, midY: 0.45, fibres: 'radial', flatMito: true, golgi: UNPOLARISED,
     };
     case 3: return {
       body: [
@@ -40,16 +48,17 @@ function planFor(stage: number): Plan {
         union(ell([-1.6, 0.4, 2.7], [1.7, 0.4, 1.3]), 0.8),
         union(ell([2.4, 0.4, -2.7], [1.7, 0.4, 1.3]), 0.8),
       ],
-      nucleus: { c: [0.3, 0.8, 0], r: [1.5, 0.52, 1.1] }, midY: 0.5, fibres: 'thick', flatMito: true,
+      nucleus: { c: [0.3, 0.8, 0], r: [1.5, 0.52, 1.1] }, midY: 0.5, fibres: 'thick', flatMito: true, golgi: 0,
     };
     default: return {
       body: [
         union(ell([0, 0.45, 0], [4.6, 0.45, 2.4])),
-        union(ell([0.3, 0.75, 0], [1.9, 0.75, 1.4]), 0.8),
+        union(ell([-0.7, 0.75, 0], [1.9, 0.75, 1.4]), 0.8),
         union(ell([3.9, 0.36, 0], [1.5, 0.36, 3.0]), 0.8),
         union(cone([-3.8, 0.42, 0.1], [-6.2, 0.4, 0.6], 0.75, 0.4), 0.6),
       ],
-      nucleus: { c: [0.3, 0.75, 0], r: [1.45, 0.5, 1.05] }, midY: 0.36, fibres: 'parallel', flatMito: true,
+      // the nucleus sits behind the cell centre, the centrosome stays near it
+      nucleus: { c: [-0.7, 0.75, 0], r: [1.45, 0.5, 1.05] }, midY: 0.36, fibres: 'parallel', flatMito: true, golgi: 0,
     };
   }
 }
@@ -74,6 +83,17 @@ function build(seed = 7, stage = 2): Anatomy {
   const nucleus = ell(nc, plan.nucleus.r, Mat.Nucleus);
   o.push(ell([nc[0] - 0.3, nc[1] + 0.1, nc[2] + 0.3], [0.28, 0.2, 0.28], Mat.Nucleolus), ell([nc[0] + 0.45, nc[1] + 0.05, nc[2] - 0.3], [0.24, 0.18, 0.24], Mat.Nucleolus), nucleus);
 
+  // Centrosome and Golgi: beside the nucleus, in the lamella (or beside it in the rounded cell).
+  const gy = plan.fibres === 'none' ? nc[1] : plan.body[0].prim.a[1];
+  const beside = (th: number, out: number): Vec3 => {
+    const cx = Math.cos(th), cz = Math.sin(th);
+    const edge = 1 / Math.hypot(cx / plan.nucleus.r[0], cz / plan.nucleus.r[2]);
+    return [nc[0] + cx * (edge + out), gy, nc[2] + cz * (edge + out)];
+  };
+  o.push(ell(beside(plan.golgi, 0.16), [0.08, 0.08, 0.08], Mat.Spindle));
+  const golgi = [-0.36, 0, 0.36].map((d) => beside(plan.golgi + d, 0.5));
+  for (const g of golgi) o.push(ell(g, [0.2, 0.09, 0.22], Mat.Golgi));
+
   // Actin fibres along the base, anchored in adhesions at their ends.
   const yF = 0.18;
   /** From (x, z), walk along (dx, dz) until near the edge, then back off so an adhesion plaque fits. */
@@ -83,11 +103,15 @@ function build(seed = 7, stage = 2): Anatomy {
     while (y < plan.midY && cellSdf(an, x, y, z) > 0) y += 0.01;
     return y;
   };
+  // Adhesion plaques (half-length, half-height, half-width): 2–6 µm long, or 8–30 µm "supermature"
+  // ones in the myofibroblast (Goffin et al. 2006). Here 2.6 µm and 8.8 µm.
+  const big = plan.fibres === 'thick';
+  const plaque: Vec3 = big ? [1.1, 0.08, 0.24] : [0.32, 0.07, 0.16];
   const edge = (x: number, z: number, dx: number, dz: number): Vec3 => {
     let t = 0;
     while (t < 12 && cellSdf(an, x + dx * (t + 0.05), plan.midY, z + dz * (t + 0.05)) < -0.3) t += 0.05;
     const px = (u: number) => x + dx * u, pz = (u: number) => z + dz * u;
-    while (t > 0.5 && (cellSdf(an, px(t + 0.35), baseY(px(t), pz(t)) + 0.14, pz(t + 0.35)) > -0.08 || cellSdf(an, px(t), baseY(px(t), pz(t)) + 0.14, pz(t)) > -0.12)) t -= 0.05;
+    while (t > 0.5 && (cellSdf(an, px(t + plaque[0] + 0.03), baseY(px(t), pz(t)) + 0.14, pz(t + plaque[0] + 0.03)) > -0.08 || cellSdf(an, px(t), baseY(px(t), pz(t)) + 0.14, pz(t)) > -0.12)) t -= 0.05;
     return [px(t), Math.max(yF, baseY(px(t), pz(t)) + 0.18), pz(t)];
   };
   const fibres: Vec3[][] = [];
@@ -105,8 +129,6 @@ function build(seed = 7, stage = 2): Anatomy {
       fibres.push([start, edge(start[0], start[2], Math.cos(a), Math.sin(a))]);
     }
   }
-  const big = plan.fibres === 'thick';
-  const plaque: Vec3 = big ? [0.5, 0.08, 0.22] : [0.32, 0.07, 0.16];
   for (const f of fibres) {
     const ends = plan.fibres === 'radial' ? [f[1]] : f;
     for (const e of ends) o.push(ell([e[0], e[1] - 0.04, e[2]], plaque, Mat.Adhesion));
@@ -121,7 +143,7 @@ function build(seed = 7, stage = 2): Anatomy {
   for (const [a, b] of fibres) addTubule(an, [a, lerp3(a, b, 0.33), lerp3(a, b, 0.66), b], big ? 0.1 : 0.07, Mat.Actin);
 
   // Mitochondria wander through the cytoplasm around the nucleus.
-  const ok = (p: Vec3) => cellSdf(an, ...p) < -0.28 && primSdf(nucleus, ...p) > 0.12;
+  const ok = (p: Vec3) => cellSdf(an, ...p) < -0.28 && primSdf(nucleus, ...p) > 0.12 && golgi.every((g) => Math.hypot(p[0] - g[0], p[2] - g[2]) > 0.45);
   for (let i = 0; i < 9; i++) {
     const ang = (i / 9) * Math.PI * 2 + rand() * 0.4;
     const r = plan.flatMito ? 1.9 : 1.55;
@@ -150,11 +172,24 @@ function labels(an: Anatomy): Label[] {
       blurb: 'Flattened by the spread cell above it. Stress fibres press down on it, so the nucleus itself feels how hard the cell is pulling.' },
     { id: 'nucleolus', name: 'Nucleolus', material: Mat.Nucleolus, anchor: nucleolus.a, size: '≈ 2 µm',
       blurb: 'Ribosome factories. Fibroblasts often show two or three.' },
-    { id: 'adhesion', name: an.stage === 0 ? 'Nascent adhesion' : 'Focal adhesion', material: Mat.Adhesion, anchor: adhesion.a, size: an.stage === 0 ? '< 0.5 µm' : an.stage === 3 ? '≈ 5–10 µm, "supermature"' : '≈ 1–5 µm long',
-      blurb: 'Integrin clusters that anchor the cell to the extracellular matrix. They grow under tension: a mechanosensing hub (talin, vinculin, FAK).' },
+    { id: 'adhesion', name: an.stage === 0 ? 'Nascent adhesion' : 'Focal adhesion', material: Mat.Adhesion, anchor: adhesion.a, size: an.stage === 0 ? '< 0.5 µm' : an.stage === 3 ? '8–30 µm long, "supermature"' : '2–6 µm long',
+      blurb: an.stage === 3
+        ? 'Integrin clusters grown to 8–30 µm. They bear about four times the stress of ordinary adhesions, and only fibres anchored in them are tense enough to recruit α-smooth-muscle actin (Goffin et al. 2006).'
+        : 'Integrin clusters that anchor the cell to the extracellular matrix. They grow under tension: a mechanosensing hub (talin, vinculin, FAK).' },
     { id: 'mito', name: 'Mitochondria', material: Mat.Mitochondrion, anchor: mitoAt, size: '≈ 0.5 µm thick',
       blurb: 'Spread through the cytoplasm, powering the myosin motors that keep the fibres under tension.' },
   ];
+  const golgi = an.organelles.find((x) => x.material === Mat.Golgi)!, mtoc = an.organelles.find((x) => x.material === Mat.Spindle)!;
+  const polarised = an.stage >= 2;
+  labels.push(
+    { id: 'golgi', name: 'Golgi apparatus', material: Mat.Golgi, anchor: golgi.a, size: '',
+      blurb: polarised
+        ? 'Stacked cisternae that sort and ship membrane and matrix proteins. In a cell at a wound edge the Golgi turns to face the wound within minutes (Kupfer et al. 1982), so that new membrane and collagen are delivered to the front.'
+        : 'Stacked cisternae that sort and ship membrane and matrix proteins, gathered around the centrosome on one side of the nucleus. Which side is arbitrary until the cell picks a direction.' },
+    { id: 'centrosome', name: 'Centrosome', material: Mat.Spindle, anchor: mtoc.a, size: '',
+      blurb: polarised
+        ? 'The microtubule-organising centre. It stays near the middle of the cell while the nucleus is pulled rearward by actin flowing back from the leading edge: that is how it comes to lie in front of the nucleus (Gomes et al. 2005).'
+        : 'Two centrioles from which the microtubules radiate. The Golgi gathers around it.' });
   if (fibreAt) labels.push({ id: 'fibre', name: an.stage === 3 ? 'α-SMA stress fibre' : an.stage === 1 ? 'Radial fibre' : 'Stress fibre', material: Mat.Actin, anchor: fibreAt, size: an.stage === 3 ? '≈ 0.5 µm thick' : '≈ 0.3 µm thick',
     blurb: an.stage === 3
       ? 'Thick bundles containing α-smooth-muscle actin: the myofibroblast contracts like a muscle cell and pulls the wound edges together.'
@@ -186,7 +221,8 @@ export const fibroblast: CellType = {
     { material: Mat.Wall, name: 'Cortex' }, { material: Mat.Cytoplasm, name: 'Cytoplasm' },
     { material: Mat.Nucleus, name: 'Nucleus' }, { material: Mat.Nucleolus, name: 'Nucleolus' },
     { material: Mat.Actin, name: 'Stress fibres' }, { material: Mat.Adhesion, name: 'Focal adhesions' },
-    { material: Mat.Mitochondrion, name: 'Mitochondria' },
+    { material: Mat.Mitochondrion, name: 'Mitochondria' }, { material: Mat.Golgi, name: 'Golgi apparatus' },
+    { material: Mat.Spindle, name: 'Centrosome' },
   ],
   stiffness: { [Mat.Wall]: 1.5, [Mat.Nucleus]: 3, [Mat.Nucleolus]: 3, [Mat.Actin]: 5, [Mat.Adhesion]: 3 },
   camera: { dist: 25, yaw: -0.35, pitch: 0.8 },

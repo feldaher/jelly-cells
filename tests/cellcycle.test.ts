@@ -22,7 +22,8 @@ function nucleusRuns(an: Anatomy) {
   let inside = false;
   for (let x = an.bounds.lo[0]; x < an.bounds.hi[0]; x += 0.02) {
     const m = materialAt(an, x, y, z);
-    const isN = m === Mat.Nucleus || m === Mat.Nucleolus;
+    // the spindle is inside the nuclear envelope
+    const isN = m === Mat.Nucleus || m === Mat.Nucleolus || m === Mat.Spindle;
     if (isN && !inside) runs.push({ from: x, to: x });
     if (isN) runs[runs.length - 1].to = x;
     inside = isN;
@@ -64,8 +65,8 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
     let vols: number[] = [];
     Given('the yeast cell at every stage', () => undefined);
     When('the cell volumes are measured', () => { vols = yeast.stages!.map((_, i) => volume(yeast.build(7, i))); });
-    Then('each stage is larger than the one before', () => {
-      for (let i = 1; i < vols.length; i++) expect(vols[i], `stage ${i}`).toBeGreaterThan(vols[i - 1]);
+    Then('each stage up to telophase is larger than the one before', () => {
+      for (let i = 1; i <= 4; i++) expect(vols[i], `stage ${i}`).toBeGreaterThan(vols[i - 1]);
     });
   });
 
@@ -97,5 +98,23 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
     });
     And('the two nuclei are separate', () => expect(nucleusRuns(an)).toHaveLength(2));
     And('there are two septin rings', () => expect(an.organelles.filter((o) => o.material === Mat.Septin)).toHaveLength(2));
+  });
+
+  Scenario('At cytokinesis the neck closes', ({ Given, When, Then, And }) => {
+    /** Radius of the cell's cross-section at x. */
+    const radiusAt = (a: Anatomy, x: number) => { let r = 0; while (r < 4 && cellSdf(a, x, 0, r) < 0) r += 0.005; return r; };
+    atStage(Given, 5);
+    When('its anatomy is built', () => undefined);
+    Then('the neck is narrower than in telophase', () => {
+      const telo = yeast.build(7, 4);
+      expect(radiusAt(an, neckX(an))).toBeLessThan(0.8 * radiusAt(telo, neckX(telo)));
+      expect(radiusAt(an, neckX(an))).toBeGreaterThan(0.15);
+    });
+    And('there is a septum across the neck', () => {
+      const s = an.organelles.filter((o) => o.material === Mat.Septum);
+      expect(s).toHaveLength(1);
+      expect(Math.abs(s[0].a[0] - neckX(an))).toBeLessThan(0.1);
+    });
+    And('the two nuclei are separate', () => expect(nucleusRuns(an)).toHaveLength(2));
   });
 });

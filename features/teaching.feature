@@ -29,6 +29,12 @@ Feature: Teaching aids
     When the labels are laid out
     Then no two label boxes overlap
 
+  Scenario: Labels near the edge of a phone screen stay on it without overlapping
+    Given labels anchored close to the left edge of a 390 pixel wide screen
+    When the labels are laid out inside the screen
+    Then every label box lies within the screen's width
+    And no two label boxes overlap
+
   Scenario Outline: Every label links to Wikipedia
     Given the <cell> cell type
     When its labels are listed at every stage
@@ -37,6 +43,8 @@ Feature: Teaching aids
     Examples:
       | cell       |
       | yeast      |
+      | pombe      |
+      | ecoli      |
       | rbc        |
       | fibroblast |
       | microglia  |

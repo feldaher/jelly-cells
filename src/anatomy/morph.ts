@@ -80,6 +80,7 @@ function size(p: Primitive): number {
     case Prim.Ellipsoid: return Math.min(...p.b);
     case Prim.Torus: return p.r;
     case Prim.Capsule: return p.r;
+    case Prim.Disc: return p.R;
     default: return Math.max(p.R, p.r);
   }
 }
@@ -89,6 +90,7 @@ function collapsed(p: Primitive, at: Vec3): Primitive {
   switch (p.kind) {
     case Prim.Ellipsoid: return { ...p, a: at, b: [0, 0, 0] };
     case Prim.Torus: return { ...p, a: at, R: 0, r: 0 };
+    case Prim.Disc: return { ...p, a: at, R: 0, r: 0 };
     default: return { ...p, a: at, b: at, R: 0, r: 0 };
   }
 }

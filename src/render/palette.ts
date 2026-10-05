@@ -1,7 +1,7 @@
 // "Varieties": three ways of looking at the same cell. Colours are sRGB hex;
 // the renderer converts them to linear. Slots match the WGSL Frame palette/mats.
 
-import { Mat, type Material, type Vec3 } from '../contracts';
+import { Mat, MATERIAL_SLOTS, type Material, type Vec3 } from '../contracts';
 
 export interface Variety {
   id: 'brightfield' | 'fluorescence' | 'electron';
@@ -34,6 +34,8 @@ export const VARIETIES: Variety[] = [
       [Mat.Wall]: '#f4efe2', [Mat.Nucleus]: '#9d8fc4', [Mat.Nucleolus]: '#5d4a8e', [Mat.Vacuole]: '#cfe0e6',
       [Mat.Mitochondrion]: '#d9724e', [Mat.Septin]: '#3f9a8c', [Mat.BudScar]: '#b79c73',
       [Mat.Actin]: '#b8434f', [Mat.Adhesion]: '#4c5fa8', [Mat.Lysosome]: '#d9a638', [Mat.ER]: '#5b6fb8',
+      [Mat.Nucleoid]: '#8f7fc0', [Mat.Spindle]: '#3d8f5a', [Mat.Ring]: '#c2356b', [Mat.Septum]: '#e9e2cf',
+      [Mat.Golgi]: '#c98a2b', [Mat.Receptor]: '#2f8fa6',
     },
     membrane: '#3a2f2a', membraneStrength: 0.35, emissive: 0, refraction: 0.035, gloss: 0.7,
     swatch: ['#f4efe2', '#e5c68e'],
@@ -45,6 +47,8 @@ export const VARIETIES: Variety[] = [
       [Mat.Wall]: '#6f86ff', [Mat.Nucleus]: '#4f7bff', [Mat.Nucleolus]: '#b9ccff', [Mat.Vacuole]: '#c46bff',
       [Mat.Mitochondrion]: '#57ff7c', [Mat.Septin]: '#35e3ff', [Mat.BudScar]: '#9fb4ff',
       [Mat.Actin]: '#ff4f6a', [Mat.Adhesion]: '#ffd24a', [Mat.Lysosome]: '#ff8a3d', [Mat.ER]: '#ffe066',
+      [Mat.Nucleoid]: '#4f8dff', [Mat.Spindle]: '#7dff5a', [Mat.Ring]: '#ff4fa0', [Mat.Septum]: '#a9c4ff',
+      [Mat.Golgi]: '#ffb347', [Mat.Receptor]: '#3df0d0',
     },
     membrane: '#e070ff', membraneStrength: 0.25, emissive: 1, refraction: 0.03, gloss: 0.3,
     swatch: ['#16181b', '#57ff7c'],
@@ -56,6 +60,8 @@ export const VARIETIES: Variety[] = [
       [Mat.Wall]: '#dcdcd7', [Mat.Nucleus]: '#76766f', [Mat.Nucleolus]: '#2e2e2c', [Mat.Vacuole]: '#ededea',
       [Mat.Mitochondrion]: '#3c3c39', [Mat.Septin]: '#262624', [Mat.BudScar]: '#8c8c88',
       [Mat.Actin]: '#4a4a46', [Mat.Adhesion]: '#1e1e1c', [Mat.Lysosome]: '#262624', [Mat.ER]: '#55554f',
+      [Mat.Nucleoid]: '#b9b9b3', [Mat.Spindle]: '#30302e', [Mat.Ring]: '#1c1c1b', [Mat.Septum]: '#cfcfca',
+      [Mat.Golgi]: '#484844', [Mat.Receptor]: '#222220',
     },
     membrane: '#121212', membraneStrength: 0.85, emissive: 0, refraction: 0.02, gloss: 0.35,
     swatch: ['#ecece8', '#6a6a66'],
@@ -76,9 +82,9 @@ export function hexToLinear(hex: string): Vec3 {
   return [c[0], c[1], c[2]];
 }
 
-/** 6 general palette slots + 16 material colours, as vec4s (see common.wgsl). */
+/** 6 general palette slots + one colour per material slot, as vec4s (see common.wgsl). */
 export function packPalette(v: Variety, absorbOverride?: Vec3): Float32Array {
-  const o = new Float32Array(22 * 4);
+  const o = new Float32Array((6 + MATERIAL_SLOTS) * 4);
   const set = (i: number, rgb: ArrayLike<number>, w = 1) => { o.set(rgb, 4 * i); o[4 * i + 3] = w; };
   set(0, v.id === 'brightfield' && absorbOverride ? absorbOverride : v.absorb);
   set(1, hexToLinear(v.scatter), v.scatterDensity);
@@ -86,6 +92,6 @@ export function packPalette(v: Variety, absorbOverride?: Vec3): Float32Array {
   set(3, hexToLinear(v.membrane), v.membraneStrength);
   set(4, [v.refraction, v.emissive, v.gloss], 0);
   set(5, hexToLinear(v.ink));
-  for (let m = 1; m < 16; m++) set(6 + m, hexToLinear(v.colors[m as Material] ?? v.scatter));
+  for (let m = 1; m < MATERIAL_SLOTS; m++) set(6 + m, hexToLinear(v.colors[m as Material] ?? v.scatter));
   return o;
 }

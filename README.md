@@ -1,12 +1,14 @@
 # Jelly Cells (Biology Studies No. 010)
 
-Cells as soft bodies. Grab them, stretch them, give them a nudge, and cut them open with a knife to see what is inside. Five specimens are in the dropdown:
+Cells as soft bodies. Grab them, stretch them, give them a nudge, and cut them open with a knife to see what is inside. Seven specimens are in the dropdown:
 
 | Cell | Inside |
 |---|---|
-| **Budding yeast** | cell wall, nucleus + nucleolus, vacuoles, mitochondrial network, septin ring, bud scars |
+| **Budding yeast** | cell wall, nucleus + nucleolus, spindle, vacuoles, mitochondrial network, septin ring, myosin ring, septum, bud scars |
+| **Fission yeast** | cell wall, nucleus + nucleolus, microtubule bundles and spindle, mitochondria, many small vacuoles, contractile ring, septum, birth scar |
+| **E. coli** | envelope, nucleoid, ribosome-rich cytoplasm, Z ring, polar chemoreceptor arrays; no organelles |
 | **Red blood cell** | biconcave disc: membrane skeleton and haemoglobin, no nucleus |
-| **Fibroblast** | flat and spread: nucleus, nucleoli, stress fibres ending in focal adhesions, mitochondria |
+| **Fibroblast** | flat and spread: nucleus, nucleoli, Golgi and centrosome, stress fibres ending in focal adhesions, mitochondria |
 | **Microglia** | ramified processes, bean-shaped nucleus, lysosomes / phagolysosome, mitochondria |
 | **Neuron** | soma, axon hillock, axon + terminal, dendrites, nucleolus, Nissl bodies, mitochondria |
 
@@ -16,14 +18,18 @@ Teaching aids:
 - **"The cut passed through"**: after each cut, a report of what the blade crossed, with sizes and profile counts.
 - **Scale bar** in µm that follows the zoom.
 - **Stage slider**, one per cell. Press ▶ (or `P`) and the cell *morphs* through its stages: the jelly itself grows the bud, pulls in its processes or regrows its axon while it keeps wobbling. Dragging the slider scrubs the morph. The stages are:
-  - *Yeast, cell cycle*: G1 → S → G2 → anaphase → telophase. The bud grows, the nucleus migrates into the neck, stretches through it and splits, and the septin ring divides in two.
+  - *Budding yeast, cell cycle*: G1 → S → G2/M → anaphase → telophase → cytokinesis. The bud grows, the nucleus migrates into the neck with its spindle, stretches through it and splits, the septin ring divides in two, the myosin ring contracts between the halves, and the daughter leaves.
+  - *Fission yeast, cell cycle*: birth → NETO → late G2 → metaphase → anaphase B → septation → fission. The rod grows from 7 to 14 µm (first at one tip, then at both), divides its nucleus inside an intact envelope, closes a septum behind its contractile ring and splits into two cells.
+  - *E. coli, cell cycle* (32 min in rich medium): newborn → end of replication → elongation → constriction → division. The nucleoid is copied and segregated while the rod doubles in length, the Z ring forms, and the cell pinches in two.
   - *Microglia, activation*: surveilling → primed → reactive → amoeboid. Processes retract and thicken, the soma swells, lysosomes multiply.
   - *Neuron, injury response*: healthy → axotomy (retraction bulb, piled-up mitochondria) → chromatolysis (swollen soma, eccentric nucleus, dispersed Nissl bodies) → regeneration (sprout and growth cone).
   - *Red blood cell, shape change*: discocyte → echinocyte I → echinocyte III → spherocyte, at nearly constant volume.
-  - *Fibroblast, wound response*: rounded → spreading → migrating → myofibroblast (thick α-SMA fibres, supermature adhesions).
+  - *Fibroblast, wound response*: rounded → spreading → migrating (nucleus to the rear, Golgi and centrosome facing the wound) → myofibroblast (thick α-SMA fibres, supermature adhesions).
+
+  A cell that reaches the end of its cycle really divides: the two daughters become separate soft bodies. Growth laws, sizes and timings of the three dividing cells come from published measurements (`src/cells/cycle/`, with sources in `docs/cell-cycles-organelles.md`).
 - **Views**: *Anatomy* or *Deformation* (mechanical strain: Green–Lagrange strain from 0 to 30 %+, so you see where a pull or a squeeze goes). Deformation colours the knife faces too, so a cut shows it inside.
 
-`?cell=neuron` (or `rbc`, `fibroblast`, `microglia`, `yeast`) opens a specific cell.
+`?cell=neuron` (or `rbc`, `fibroblast`, `microglia`, `yeast`, `pombe`, `ecoli`) opens a specific cell.
 
 It is a static site: WebGPU for rendering and TypeScript XPBD physics on the CPU. There are no runtime dependencies.
 
@@ -52,12 +58,14 @@ It needs a browser with WebGPU: current Chrome or Edge, Safari 18+, or Firefox w
 ## How it works
 
 - **Cell types** (`src/cells`): each is a `CellType` (see `src/contracts.ts`). It provides a body (ellipsoids, tori and tapered tubes combined by smooth union or subtraction), organelles, labels, key, stiffness per material, camera and µm-per-unit scale.
+- **Cycle laws** (`src/cells/cycle`): the measured quantities of each dividing cell (lengths, growth law, nuclear volume fraction, replication periods) as constants with their sources, and pure functions of the cycle phase. The cell files build their stages from these.
+- **Fission** (`World.divide`): the last stage of a dividing cell carries a `fission` plane; when a morph lands on it the cell is split along that plane with the cutting machinery, no knife involved.
 - **Anatomy** (`src/anatomy`): the signed distance fields. The same functions exist in TypeScript and WGSL (`render/shaders/common.wgsl`).
 - **Teaching** (`src/teach`, `src/ui/teach.ts`): section measurement, scale bar, label layout, Wikipedia links, micrographs and the overlay UI. The physics notes and their equations open in a modal (*Inside the experiment*).
 - **Mesh** (`src/mesh`): a BCC tetrahedral lattice clipped to the piece's SDF, with boundary nodes snapped onto the surface. Each tet takes the material at its centroid. The render skin is a surface-nets isosurface; organelles are analytic meshes. Both are embedded in the tets by barycentric weights.
 - **Physics** (`src/physics`): XPBD at a fixed 60 Hz step with 12 substeps. Each tet has a co-rotational shape constraint and a volume constraint on either side of it, and its stiffness is scaled by material (wall ×4, nucleus ×2, vacuole ×0.7). The rest are edge-relative damping, floor contact with friction, a soft grab, and contact between pieces. Pieces are solid to each other: a surface particle found inside another piece's tetrahedra is pushed back out along that piece's depth field (distance below its surface, carried through the deformed tet), with Coulomb friction, on top of a short-range particle cushion.
 - **Cutting** (`src/cut`): the stroke defines a vertical world plane. It is carried into each piece's rest space through a best-fit rotation. Each side becomes a new piece (the SDF ∩ its half-spaces), built in a Web Worker while the knife presses its groove. The new pieces then inherit position and velocity from the flesh they came from.
-- **Morphing** (`src/anatomy/morph.ts`, `src/app/morph.ts`): between stages the body's SDF is blended, d = (1 − t)·d<sub>i</sub> + t·d<sub>i+1</sub>, so new flesh appears first next to the old surface. Organelles are matched one to one; an unmatched one grows out of its nearest relative, and nothing is placed outside the blended body. A worker keeps re-meshing the cell a little further along. Each new particle starts at the old flesh it pulls back to (X − (d<sub>s</sub> − d<sub>s′</sub>)∇d<sub>s</sub>), so the new mesh begins in the old shape and its own elasticity carries it into the new one. Design notes: `docs/morph-micrographs-physics-modal.md`.
+- **Morphing** (`src/anatomy/morph.ts`, `src/app/morph.ts`): between stages the body's SDF is blended, d = (1 − t)·d<sub>i</sub> + t·d<sub>i+1</sub>, so new flesh appears first next to the old surface. Organelles are matched one to one; an unmatched one grows out of its nearest relative, and nothing is placed outside the blended body. A worker keeps re-meshing the cell a little further along. Each new particle starts at the old flesh it pulls back to (X − (d<sub>s</sub> − d<sub>s′</sub>)∇d<sub>s</sub>), so the new mesh begins in the old shape and its own elasticity carries it into the new one. Design notes: `docs/morph-micrographs-physics-modal.md`, `docs/cell-cycles-organelles.md`.
 - **Rendering** (`src/render`): shadow map and a bottom-up contact map, then the opaque scene. Then, per piece from back to front, a back-face thickness pass and the jelly front faces: refraction, Beer–Lambert absorption, milky scattering and Fresnel/GGX. Knife faces show exact organelle sections by evaluating the SDFs at each fragment's rest position.
 
 The types every layer agrees on live in `src/contracts.ts`. Behaviour is specified in `features/*.feature`.
@@ -72,7 +80,7 @@ The types every layer agrees on live in `src/contracts.ts`. Behaviour is specifi
 
 ## Scale
 
-Each cell type maps sim units to µm (yeast 1, RBC 1.25, microglia 1.5, neuron 2, fibroblast 4), so labels, the scale bar, the cut report and the mass are in real units. The *dynamics* are illustrative: every cell moves as if it were a few centimetres of gelatin. At true size a cell lives at very low Reynolds number and would never visibly wobble.
+Each cell type maps sim units to µm (E. coli 0.35, yeast 1, fission yeast 1.25, RBC 1.25, microglia 1.5, neuron 2, fibroblast 4), so labels, the scale bar, the cut report and the mass are in real units. The *dynamics* are illustrative: every cell moves as if it were a few centimetres of gelatin. At true size a cell lives at very low Reynolds number and would never visibly wobble.
 
 ## Image credits
 

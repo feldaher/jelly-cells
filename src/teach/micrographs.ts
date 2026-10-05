@@ -1,6 +1,6 @@
 // Real micrographs for the label cards, all from Wikimedia Commons (public domain,
 // CC0, CC BY or CC BY-SA). Licence and author are as Commons records them (checked
-// 2026-09-30); every image was looked at to confirm the caption. Where no image of the
+// 2026-09-30, and 2026-10-05 for the fission yeast, E. coli, Golgi and centrosome images); every image was looked at to confirm the caption. Where no image of the
 // right organism exists, the caption says what is shown instead. Files are 640 px
 // copies in public/micrographs.
 
@@ -93,6 +93,26 @@ const PICS: Record<string, Pic> = {
     caption: 'Fluorescent axons in a cut or crushed peripheral nerve, 37–44 h after the injury: intact at first, then broken into fragments (Wallerian degeneration).' },
   'growth-cone': { commons: 'File:Growthcone.jpg', author: 'Paul Letourneau, University of Minnesota (via NIH)', license: 'Public domain', modality: 'Fluorescence',
     caption: 'The growth cone of an elongating axon: actin (red) fills the filopodia and lamellipodium; microtubules (green) run up the axon shaft.' },
+  'pombe-division': { commons: 'File:Schizosaccharomyces pombe division.JPG', author: 'Roland Gromes', license: 'CC BY-SA 3.0', modality: 'Light',
+    caption: 'Fission yeast in bright field (left) and dark field (right): a single cell (top), a cell with its septum across the middle, and two daughters that have just parted, their new ends facing each other.' },
+  'pombe-calcofluor': { commons: 'File:Fission yeast division.jpg', author: 'Liam Pennington (G Lens Microscopist)', license: 'CC BY 4.0', modality: 'Confocal',
+    caption: 'Fission yeast stained with calcofluor white, which binds cell wall. From top to bottom: a growing cell, a bright septum across the middle, the septum splitting, and two separate daughters.' },
+  'pombe-tem': { commons: 'File:Schizosaccharomyces pombe tsentrosoom.jpg', author: 'Tiina Tamm', license: 'CC BY-SA 3.0', modality: 'TEM',
+    caption: 'Thin sections of fission yeast. Left: a whole cell inside its wall, with the nucleus in the middle. Centre and right: the nucleus within its intact envelope; the dark plaque on the envelope is the spindle pole body, the yeast centrosome. Scale bars 500 nm.' },
+  'pombe-timelapse': { commons: 'File:Gene Function in the Fission Yeast Schizosaccharomyces pombe.png', author: 'Aharrell12345', license: 'CC BY 4.0', modality: 'Fluorescence',
+    caption: 'Living fission yeast in late anaphase and early cytokinesis, frame by frame: microtubules in green (tubulin Atb2-GFP), running the length of the cells, and the contractile ring in red (myosin light chain Rlc1) across the middle of the dividing one.' },
+  'ecoli-sem': { commons: 'File:E. coli Bacteria (7316101966).jpg', author: 'NIAID', license: 'Public domain', modality: 'SEM',
+    caption: 'Scanning electron micrograph of E. coli grown in culture on a cover slip. What is seen is the outer membrane, the outermost of the envelope\'s three layers. Scale bar 2 µm.' },
+  'ecoli-dividing': { commons: 'File:Ecoli dividing.jpg', author: 'CDC / Evangeline Sowers, Janice Haney Carr', license: 'Public domain', modality: 'SEM',
+    caption: 'Scanning electron micrograph of an E. coli cell at the end of division: the two daughters are still joined where their new poles have just closed. Scale bar 1 µm.' },
+  'ecoli-flagella': { commons: 'File:Escherichia coli flagella TEM.png', author: 'CDC / E. H. White, Peggy S. Hayes', license: 'Public domain', modality: 'TEM',
+    caption: 'Transmission electron micrograph (colourised) of an E. coli O157:H7 cell with its flagella: helical filaments several times longer than the cell, each turned by a motor in the envelope.' },
+  'nucleoid-ellipsoid': { commons: 'File:Subhash nucleoid 11.png', author: 'Verma S. C., Qian Z., Adhya S. L. (PLoS Genet 2019)', license: 'CC BY 4.0', modality: 'Fluorescence',
+    caption: 'The E. coli nucleoid. A: a drawing of its curved, lobed shape inside the cell. B: DNA density measured in a living cell from the fluorescence of the DNA-binding protein HU-mCherry, shown in section (blue low, red high). Scale 250 nm.' },
+  'centrosome-golgi': { commons: 'File:Regrowth of microtubules from a centrosome and Golgi apparatus in vitro.jpg', author: 'Brian6122', license: 'CC BY 4.0', modality: 'Confocal',
+    caption: 'Microtubules (red) growing back from the centrosome, the bright pair of dots at the centre, and from the Golgi membranes gathered around it (spinning-disk confocal).' },
+  'golgi-tem': { commons: 'File:GolgilTGNc.jpg', author: 'JeanOhm, from a micrograph by Louisa Howard', license: 'CC BY-SA 4.0', modality: 'TEM',
+    caption: 'Transmission electron micrograph of the Golgi apparatus of a human leukocyte: a curved stack of flat cisternae, with the trans-Golgi network (TGN) and its vesicles on the concave side. Scale bar 100 nm.' },
 };
 
 /** Which image each label shows, by "cell:Label name" first, then by name alone; a caption here replaces the image's own. */
@@ -108,6 +128,32 @@ const LABELS: Record<string, string | { pic: string; caption: string }> = {
   'Bud (daughter)': 'yeast-dic',
   'Anaphase bridge': 'anaphase',
   'Daughter nucleus': 'telophase',
+  'yeast:Spindle': { pic: 'anaphase', caption: 'A spindle (green) pulling chromosomes (blue) apart in an animal cell. The yeast spindle does the same job inside the intact nucleus, between two spindle pole bodies set in the envelope.' },
+  'yeast:Contractile ring': { pic: 'yeast-septins', caption: 'The septin collar (green) at each mother–bud neck of S. cerevisiae. The myosin ring lies just inside the collar and contracts between its two halves at cytokinesis. Scale bar 10 µm.' },
+  'yeast:Septum': { pic: 'yeast-sem', caption: 'Scanning electron micrograph of S. cerevisiae. The raised rings on the mothers are bud scars: what is left of the chitin septum after each daughter has gone. Scale bar 5 µm.' },
+  // fission yeast
+  'pombe:Nucleus': 'pombe-tem',
+  'pombe:Nucleolus': { pic: 'hela-nucleoli', caption: 'Nucleoli (red, fibrillarin) in human HeLa cells. The fission yeast nucleolus is marked by the same protein and fills one side of the nucleus.' },
+  'pombe:Mitochondria': { pic: 'hela-mitochondria', caption: 'Human HeLa cells expressing mitochondria-targeted GFP. Fission yeast mitochondria are tubules of the same kind, laid along the long axis of the cell beside the microtubules.' },
+  'pombe:Cell wall': { pic: 'pombe-calcofluor', caption: 'Fission yeast stained with calcofluor white, which binds cell wall: the outline of each cell is its wall, and the brightest wall is the new septum.' },
+  'Vacuoles': { pic: 'yeast-vacuoles', caption: 'Vacuole membranes (Vph1-GFP) in budding yeast, which has one or a few large vacuoles per cell. Fission yeast has many small ones instead.' },
+  'Birth scar': { pic: 'pombe-calcofluor', caption: 'Fission yeast stained with calcofluor white. After the septum has split (bottom), each daughter keeps a ridge where it met the side wall: the birth scar, at the base of her new end.' },
+  'Microtubule bundle': 'pombe-timelapse',
+  'Old end': 'pombe-division',
+  'New end': 'pombe-division',
+  'pombe:Spindle': { pic: 'pombe-tem', caption: 'Thin sections of fission yeast. The dark plaque on the nuclear envelope (centre and right) is the spindle pole body. In mitosis it duplicates, and the spindle forms between the two inside the nucleus. Scale bars 500 nm.' },
+  'Contractile ring': 'pombe-timelapse',
+  'Septum': 'pombe-calcofluor',
+  'New cell ends': 'pombe-division',
+  // E. coli
+  'Nucleoid': 'nucleoid-ellipsoid',
+  'Cell envelope': 'ecoli-sem',
+  'Ribosome-rich cytoplasm': { pic: 'nucleoid-ellipsoid', caption: 'DNA density in a living E. coli cell (B: blue low, red high). Ribosomes fill what the nucleoid leaves free: the two ends of the cell, the middle between the lobes, and a shell under the membrane.' },
+  'Chemoreceptor array': { pic: 'ecoli-flagella', caption: 'An E. coli O157:H7 cell and its flagella (colourised TEM). The receptor arrays at the poles decide which way the flagellar motors turn, and so whether the cell keeps swimming or tumbles.' },
+  'Cell pole': 'ecoli-flagella',
+  'Z ring': { pic: 'ecoli-dividing', caption: 'An E. coli cell at the end of division (SEM). The furrow between the daughters is where the Z ring assembled, under the membrane, about 20 minutes earlier. Scale bar 1 µm.' },
+  'Constriction': 'ecoli-dividing',
+  'New poles': 'ecoli-dividing',
   // red blood cell
   'Membrane skeleton': 'spectrin',
   'Haemoglobin': 'rbc-light',
@@ -128,6 +174,8 @@ const LABELS: Record<string, string | { pic: string; caption: string }> = {
   'Spreading skirt': 'fibroblast-sem',
   'Spreading edge': 'lamellipodium',
   'Lamellipodium': 'lamellipodium',
+  'Golgi apparatus': 'golgi-tem',
+  'Centrosome': 'centrosome-golgi',
   'Trailing edge': { pic: 'lamellipodium', caption: 'A crawling cell in phase contrast: lamellipodia lead at the front (green arrows) while a long tail trails behind, still anchored until its adhesions let go. Scale bar 50 µm.' },
   // microglia
   'microglia:Nucleus': 'microglia-iba1',

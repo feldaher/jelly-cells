@@ -13,6 +13,8 @@ Feature: Real micrographs on the label cards
     Examples:
       | cell       |
       | yeast      |
+      | pombe      |
+      | ecoli      |
       | rbc        |
       | fibroblast |
       | microglia  |

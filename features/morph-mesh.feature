@@ -11,6 +11,8 @@ Feature: Morph keyframes are sound soft bodies
     Examples:
       | type       |
       | yeast      |
+      | pombe      |
+      | ecoli      |
       | rbc        |
       | fibroblast |
       | microglia  |

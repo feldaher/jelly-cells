@@ -1,5 +1,5 @@
-// Analytic rest-space meshes of the organelles: ellipsoids, a septin torus and
-// smooth mitochondrial tubes. They are embedded into each piece like the melon's seeds.
+// Analytic rest-space meshes of the organelles: ellipsoids, rings, septum discs and
+// smooth tubes. They are embedded into each piece like the melon's seeds.
 
 import { Mat, Prim, type Anatomy, type Material, type Vec3 } from '../contracts';
 import type { RestMesh } from './surface';
@@ -49,6 +49,27 @@ export function torusMesh(c: Vec3, axis: Vec3, R: number, r: number, seg = 48, s
   }
   for (let i = 0; i < seg; i++) for (let j = 0; j < sides; j++) {
     const a = i * (sides + 1) + j, b = a + sides + 1;
+    idx.push(a, b, a + 1, a + 1, b, b + 1);
+  }
+  return finish(pos, idx);
+}
+
+/** A flat washer (or a full disc when rIn = 0) about `axis`, with square edges. */
+export function discMesh(c: Vec3, axis: Vec3, halfThickness: number, rOut: number, rIn: number, seg = 48): RestMesh {
+  const [u, v] = basis(axis);
+  const pos: number[] = [], idx: number[] = [];
+  // the section of the washer, walked once around: outer bottom → outer top → inner top → inner bottom
+  const section: [number, number][] = rIn > 1e-4
+    ? [[rOut, -halfThickness], [rOut, halfThickness], [rIn, halfThickness], [rIn, -halfThickness], [rOut, -halfThickness]]
+    : [[0, -halfThickness], [rOut, -halfThickness], [rOut, halfThickness], [0, halfThickness]];
+  for (let i = 0; i <= seg; i++) {
+    const a = (2 * Math.PI * i) / seg;
+    const dir = add(scale(u, Math.cos(a)), scale(v, Math.sin(a)));
+    for (const [r, h] of section) pos.push(...add(c, add(scale(dir, r), scale(axis, h))));
+  }
+  const n = section.length;
+  for (let i = 0; i < seg; i++) for (let j = 0; j + 1 < n; j++) {
+    const a = i * n + j, b = a + n;
     idx.push(a, b, a + 1, a + 1, b, b + 1);
   }
   return finish(pos, idx);
@@ -113,8 +134,12 @@ export function organelleTemplates(an: Anatomy): OrganelleTemplate[] {
   for (const o of an.organelles) {
     const small = Math.max(...o.b) < 0.45;
     if (o.kind === Prim.Ellipsoid) out.push({ material: o.material, mesh: ellipsoidMesh(o.a, o.b, small ? 18 : 30, small ? 10 : 20) });
-    else if (o.kind === Prim.Torus && o.material === Mat.Septin) out.push({ material: o.material, mesh: torusMesh(o.a, o.b, o.R, o.r) });
-    // capsules belong to tubules, meshed below; bud-scar tori are painted on the skin
+    else if (o.kind === Prim.Torus && o.material !== Mat.BudScar) out.push({ material: o.material, mesh: torusMesh(o.a, o.b, o.R, o.r) });
+    else if (o.kind === Prim.Disc) {
+      const ht = Math.hypot(...o.b) || 1e-6;
+      out.push({ material: o.material, mesh: discMesh(o.a, [o.b[0] / ht, o.b[1] / ht, o.b[2] / ht], ht, o.R, o.r) });
+    }
+    // capsules belong to tubules, meshed below; scar tori are painted on the skin
   }
   for (const t of an.tubules) out.push({ material: t.material, mesh: tubeMesh(t.points, t.radius, t.radius < 0.09 ? 6 : 8) });
   return out;

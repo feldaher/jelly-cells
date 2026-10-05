@@ -172,8 +172,47 @@ export class World {
     this.anatomyVersion++;
     if (Math.round(stage) !== before) { this.labels = labelsAt(this.type.id, this.an.seed, stage); this.labelsVersion++; }
     this.restTotal = restVolume(p.sim);
-    if (stage === this.morph?.target) this.morph = null;
+    if (stage === this.morph?.target) {
+      this.morph = null;
+      // the cycle has run to its end: the daughters part
+      if (this.an.fission) this.divide();
+    }
     this.refreshSkins();
+  }
+
+  /**
+   * Splits the whole cell along its anatomy's fission plane into two soft bodies, the way a
+   * knife cut would but with no knife. Returns false when the stage has no fission plane or
+   * the cell is not whole. With a worker the daughters appear a moment later.
+   */
+  divide(): boolean {
+    const rest = this.an.fission;
+    const parent = this.pieces[0];
+    if (!rest || this.pieces.length !== 1 || parent.planes.length || this.knife) return false;
+    this.cancelMorph();
+    const part = (children: CutChild[]) => {
+      if (this.pieces.length !== 1 || this.pieces[0] !== parent || children.length < 2) return;
+      for (const c of children) { c.piece.id = this.nextId++; c.piece.bornAt = this.time; }
+      for (const c of children) c.piece.cutGroup = children[0].piece.id;
+      this.pieces = applyCut(this.pieces, { world: rest, splits: [{ parent, children }] });
+      if (this.grab && !this.pieces.includes(this.grab.piece)) this.grab = null;
+      this.refreshSkins();
+    };
+    const worker = this.worker();
+    if (!worker) { part(buildChildren(this.an, parent.sim, parent.planes, rest, () => 0)); return this.pieces.length > 1; }
+    const id = ++this.requestId;
+    const req: CutRequest = {
+      id, cellType: this.type.id, stage: this.stage, umPerUnit: this.type.umPerUnit, seed: this.an.seed,
+      jobs: [{ parentPlanes: parent.planes, rest, parent: { restPos: parent.sim.restPos, tets: parent.sim.tets, restInv: parent.sim.restInv, spacing: parent.sim.spacing } }],
+    };
+    const onMessage = (e: MessageEvent<{ id: number; results: CutChild[][] }>) => {
+      if (e.data.id !== id) return;
+      worker.removeEventListener('message', onMessage);
+      part(e.data.results[0]);
+    };
+    worker.addEventListener('message', onMessage);
+    worker.postMessage(req);
+    return true;
   }
 
   private morphWorkerRef: Worker | null | undefined;

@@ -29,7 +29,8 @@ describe('anatomy', () => {
   });
   it('the nucleus centre is nucleus material', () => {
     const nuc = an.organelles.find((o) => o.material === Mat.Nucleus)!;
-    expect([Mat.Nucleus, Mat.Nucleolus]).toContain(materialAt(an, ...nuc.a));
+    // at G2/M the short spindle runs through the middle of the nucleus, inside its envelope
+    expect([Mat.Nucleus, Mat.Nucleolus, Mat.Spindle]).toContain(materialAt(an, ...nuc.a));
   });
   it('is deterministic for a seed', () => {
     expect(JSON.stringify(defaultAnatomy(3))).toBe(JSON.stringify(defaultAnatomy(3)));

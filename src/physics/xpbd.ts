@@ -19,8 +19,6 @@ export interface StepExtras {
 
 /** Ratio of the volume stiffness to the shape stiffness: close to incompressible. */
 const LAMBDA_OVER_MU = 100;
-/** Passes of the solid contact per substep (a pushed tet can shove another particle in). */
-const SOLID_ITERS = 2;
 /** Rotation-extraction iterations per substep (warm-started, so one is plenty). */
 const ROT_ITERS = 1;
 /** Warm-start rotation (quaternion) per tet, kept between substeps. */
@@ -72,7 +70,7 @@ export function step(pieces: Piece[], params: SimParams, dt: number, extra: Step
     extra.constrain?.(pieces, sdt);
     if (extra.collide !== false) {
       collider.solve(pieces, (extra.time ?? Infinity) + s * sdt);
-      for (let it = 0; it < SOLID_ITERS; it++) solid.solve(pieces);
+      solid.solve(pieces);
     }
     for (const p of pieces) {
       floorContact(p.sim, params.friction);

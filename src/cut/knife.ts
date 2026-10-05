@@ -113,10 +113,23 @@ export function knifeConstraint(k: Knife, pieces: Piece[]) {
   }
 }
 
-/** The knife as a world-space mesh for the renderer, or null when it is away. */
+/** Which part of the knife a vertex belongs to (rest.w of the mesh; the shader shades each differently). */
+export const KnifePart = { Blade: 0, Wood: 1, Bolster: 2, Rivet: 3, Bevel: 4 } as const;
+
+const HANDLE_L = 3.5, BOLSTER_L = 0.4;
+/** Half-thickness of the blade at the spine, at the heel. */
+const SPINE_T = 0.075;
+
+/**
+ * The knife as a world-space mesh for the renderer, or null when it is away: a chef's knife
+ * with a ground blade, a bolster and a riveted wooden handle. In knife-local coordinates x
+ * runs from handle to tip, y is up from the cutting edge and z is across the blade; they are
+ * kept in rest.xyz for the wood grain and the brushing of the steel. The edge is level (y = 0)
+ * under the cell, as the physics assumes, and sweeps up to the tip only beyond it.
+ */
 export function bladeMesh(k: Knife): WorldMesh | null {
   if (k.phase === 'done') return null;
-  const L = k.length, H = BLADE_H, T = BLADE_T;
+  const L = k.length, H = BLADE_H;
   const pos: number[] = [], nrm: number[] = [], rest: number[] = [], idx: number[] = [];
   const X = k.along, Z = k.plane.n, Y: Vec3 = [0, 1, 0];
   const o: Vec3 = [k.centre[0], k.edgeY, k.centre[2]];
@@ -126,28 +139,89 @@ export function bladeMesh(k: Knife): WorldMesh | null {
     const l = Math.hypot(w[0], w[1], w[2]) || 1;
     return w.map((c) => c / l);
   };
-  const quad = (a: number[], b: number[], c: number[], e: number[], kind: number) => {
-    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
-    const nn = dirWorld([u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]);
-    const base = pos.length / 3;
-    for (const p of [a, b, c, e]) { pos.push(...toWorld(p)); nrm.push(...nn); rest.push(0, 0, 0, kind); }
-    idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  const vert = (p: number[], n: number[], part: number) => { pos.push(...toWorld(p)); nrm.push(...dirWorld(n)); rest.push(p[0], p[1], p[2], part); return pos.length / 3 - 1; };
+  const faceNormal = (a: number[], b: number[], c: number[]) => {
+    const e = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], f = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    return [e[1] * f[2] - e[2] * f[1], e[2] * f[0] - e[0] * f[2], e[0] * f[1] - e[1] * f[0]];
   };
-  // Blade: a wedge whose edge is y = 0, spine at y = H, tip rising toward +x.
-  const x0 = -L / 2, x1 = L / 2, tipY = H * 0.55;
-  const e0 = [x0, 0, 0], e1 = [x1, tipY, 0];
-  const sp0 = [x0, H, T / 2], sp1 = [x1, H, T / 2], sm0 = [x0, H, -T / 2], sm1 = [x1, H, -T / 2];
-  quad(e0, e1, sp1, sp0, 0);
-  quad(e1, e0, sm0, sm1, 0);
-  quad(sp0, sp1, sm1, sm0, 0);
-  quad(e1, sp1, sm1, sm1, 0); // tip cap (a triangle)
-  // Handle: a dark box beyond the heel.
-  const h0 = x0 - 3.6, h1 = x0 + 0.05, hy0 = H * 0.32, hy1 = H * 0.98, hz = 0.24;
-  const c = (x: number, y: number, z: number) => [x, y, z];
-  quad(c(h0, hy0, hz), c(h1, hy0, hz), c(h1, hy1, hz), c(h0, hy1, hz), 1);
-  quad(c(h1, hy0, -hz), c(h0, hy0, -hz), c(h0, hy1, -hz), c(h1, hy1, -hz), 1);
-  quad(c(h0, hy1, hz), c(h1, hy1, hz), c(h1, hy1, -hz), c(h0, hy1, -hz), 1);
-  quad(c(h0, hy0, -hz), c(h1, hy0, -hz), c(h1, hy0, hz), c(h0, hy0, hz), 1);
-  quad(c(h0, hy0, -hz), c(h0, hy0, hz), c(h0, hy1, hz), c(h0, hy1, -hz), 1);
+  /** A flat-shaded quad a-b-c-e (or a triangle when c = e), facing `out` (a rough outward direction). */
+  const quad = (a: number[], b: number[], c: number[], e: number[], part: number, out: number[]) => {
+    let n = faceNormal(a, b, c);
+    if (Math.hypot(n[0], n[1], n[2]) < 1e-9) n = faceNormal(a, c, e);
+    const flip = n[0] * out[0] + n[1] * out[1] + n[2] * out[2] < 0;
+    if (flip) n = n.map((x) => -x);
+    const i = [a, b, c, e].map((p) => vert(p, n, part));
+    if (flip) idx.push(i[0], i[2], i[1], i[0], i[3], i[2]); else idx.push(i[0], i[1], i[2], i[0], i[2], i[3]);
+  };
+
+  // Blade profile: a level edge that sweeps up over the last quarter, a spine that drops to meet it.
+  const x0 = -L / 2, x1 = L / 2, tipY = 0.5 * H;
+  const belly = x1 - 0.26 * L, drop = x0 + 0.5 * L, bevelH = 0.32;
+  const edgeAt = (x: number) => (x <= belly ? 0 : tipY * ((x - belly) / (x1 - belly)) ** 2);
+  const spineAt = (x: number) => (x <= drop ? H : H - (H - tipY) * ((x - drop) / (x1 - drop)) ** 2);
+  const thick = (x: number) => SPINE_T * (1 - 0.72 * Math.max(0, (x - x0) / L)); // distal taper
+  const N = 16;
+  const xs = Array.from({ length: N + 1 }, (_, i) => {
+    // stations bunch toward the tip, where the outline curves
+    const t = i / N;
+    return x0 + L * (t < 0.5 ? t * 1.2 : 0.6 + (t - 0.5) * 0.8);
+  });
+  for (let i = 0; i < N; i++) {
+    const a = xs[i], b = xs[i + 1], last = i === N - 1;
+    for (const sgn of [1, -1]) {
+      const edge = (x: number) => [x, edgeAt(x), 0];
+      // the grind: a narrow bevel at the edge, then the flat up to the spine
+      const shoulder = (x: number) => { const h = Math.min(bevelH, 0.6 * (spineAt(x) - edgeAt(x))); return [x, edgeAt(x) + h, sgn * thick(x) * 0.5]; };
+      const spine = (x: number) => [x, spineAt(x), sgn * thick(x)];
+      quad(edge(a), edge(b), last ? edge(b) : shoulder(b), shoulder(a), KnifePart.Bevel, [0, -0.2, sgn]);
+      quad(shoulder(a), last ? edge(b) : shoulder(b), last ? edge(b) : spine(b), spine(a), KnifePart.Blade, [0, 0, sgn]);
+    }
+    if (!last) quad([a, spineAt(a), thick(a)], [b, spineAt(b), thick(b)], [b, spineAt(b), -thick(b)], [a, spineAt(a), -thick(a)], KnifePart.Blade, [0, 1, 0]);
+  }
+  // heel: the back of the blade below the bolster
+  quad([x0, 0, 0], [x0, bevelH, SPINE_T * 0.5], [x0, H, SPINE_T], [x0, H, SPINE_T], KnifePart.Blade, [-1, 0, 0]);
+  quad([x0, 0, 0], [x0, bevelH, -SPINE_T * 0.5], [x0, H, -SPINE_T], [x0, H, -SPINE_T], KnifePart.Blade, [-1, 0, 0]);
+  quad([x0, bevelH, SPINE_T * 0.5], [x0, H, SPINE_T], [x0, H, -SPINE_T], [x0, bevelH, -SPINE_T * 0.5], KnifePart.Blade, [-1, 0, 0]);
+
+  // Bolster and handle: rings of an eight-sided rounded section, lofted along x with smooth normals.
+  const ring = (x: number, yc: number, h: number, w: number): number[][] =>
+    [[h, 0.5 * w], [0.5 * h, w], [-0.5 * h, w], [-h, 0.5 * w], [-h, -0.5 * w], [-0.5 * h, -w], [0.5 * h, -w], [h, -0.5 * w]].map(([dy, dz]) => [x, yc + dy, dz]);
+  const loft = (stations: { x: number; yc: number; h: number; w: number }[], part: number) => {
+    const rows = stations.map((s) => ring(s.x, s.yc, s.h, s.w).map((p) => vert(p, [0, (p[1] - s.yc) / (s.h * s.h), p[2] / (s.w * s.w)], part)));
+    for (let i = 0; i + 1 < rows.length; i++) for (let j = 0; j < 8; j++) {
+      const a = rows[i][j], b = rows[i][(j + 1) % 8], c = rows[i + 1][(j + 1) % 8], e = rows[i + 1][j];
+      idx.push(a, e, b, b, e, c);
+    }
+  };
+  const cap = (s: { x: number; yc: number; h: number; w: number }, part: number, dir: number) => {
+    const pts = ring(s.x, s.yc, s.h, s.w), c = vert([s.x, s.yc, 0], [dir, 0, 0], part), v = pts.map((p) => vert(p, [dir, 0, 0], part));
+    for (let j = 0; j < 8; j++) { const a = v[j], b = v[(j + 1) % 8]; if (dir > 0) idx.push(c, b, a); else idx.push(c, a, b); }
+  };
+  const yc = 0.66 * H, bx0 = x0 - BOLSTER_L;
+  const bolster = [
+    { x: x0 + 0.02, yc: yc + 0.02 * H, h: 0.33 * H, w: SPINE_T + 0.03 },
+    { x: x0 - 0.5 * BOLSTER_L, yc, h: 0.31 * H, w: 0.2 },
+    { x: bx0, yc, h: 0.3 * H, w: 0.23 },
+  ];
+  loft(bolster, KnifePart.Bolster);
+  cap(bolster[0], KnifePart.Bolster, 1);
+  // the handle swells in the palm and dips toward the butt
+  const handle = [0, 0.18, 0.45, 0.75, 0.93, 1].map((t) => ({
+    x: bx0 - t * HANDLE_L,
+    yc: yc - 0.1 * H * t * t,
+    h: 0.3 * H * (1 + 0.14 * Math.sin(Math.PI * Math.min(1, t * 1.15)) - (t > 0.93 ? 0.12 : 0)),
+    w: 0.235 * (1 + 0.12 * Math.sin(Math.PI * t)) * (t > 0.93 ? 0.85 : 1),
+  }));
+  loft(handle, KnifePart.Wood);
+  cap(handle[handle.length - 1], KnifePart.Wood, -1);
+  // three brass rivets through the tang, a hair proud of each scale
+  for (const t of [0.2, 0.5, 0.8]) {
+    const x = bx0 - t * HANDLE_L, cy = yc - 0.1 * H * t * t, w = 0.235 * (1 + 0.12 * Math.sin(Math.PI * t)) + 0.004, r = 0.11;
+    for (const sgn of [1, -1]) {
+      const c = vert([x, cy, sgn * w], [0, 0, sgn], KnifePart.Rivet);
+      const v = Array.from({ length: 10 }, (_, j) => vert([x + r * Math.cos((j * Math.PI) / 5), cy + r * Math.sin((j * Math.PI) / 5), sgn * w], [0, 0, sgn], KnifePart.Rivet));
+      for (let j = 0; j < 10; j++) { const a = v[j], b = v[(j + 1) % 10]; if (sgn > 0) idx.push(c, a, b); else idx.push(c, b, a); }
+    }
+  }
   return { pos: new Float32Array(pos), normal: new Float32Array(nrm), rest: new Float32Array(rest), idx: new Uint32Array(idx) };
 }

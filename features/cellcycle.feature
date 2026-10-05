@@ -1,6 +1,7 @@
 Feature: The budding yeast cell cycle
-  A slider steps the yeast cell through G1, S, G2, anaphase and telophase:
-  the bud grows, the nucleus migrates into the neck, stretches through it and splits.
+  A slider steps the yeast cell through G1, S, G2/M, anaphase, telophase and cytokinesis:
+  the bud grows, the nucleus migrates into the neck, stretches through it and splits,
+  and the neck closes between mother and daughter.
 
   Scenario Outline: Every stage is a sound soft body with honest labels
     Given the yeast cell at stage <stage>
@@ -17,11 +18,12 @@ Feature: The budding yeast cell cycle
       | 2     |
       | 3     |
       | 4     |
+      | 5     |
 
   Scenario: The bud grows through the cycle
     Given the yeast cell at every stage
     When the cell volumes are measured
-    Then each stage is larger than the one before
+    Then each stage up to telophase is larger than the one before
 
   Scenario: A G1 cell has no bud yet
     Given the yeast cell at stage 0
@@ -41,3 +43,10 @@ Feature: The budding yeast cell cycle
     Then there is nucleus on both sides of the neck
     And the two nuclei are separate
     And there are two septin rings
+
+  Scenario: At cytokinesis the neck closes
+    Given the yeast cell at stage 5
+    When its anatomy is built
+    Then the neck is narrower than in telophase
+    And there is a septum across the neck
+    And the two nuclei are separate

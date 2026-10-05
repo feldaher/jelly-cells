@@ -4,7 +4,7 @@
 //   3. per piece, back to front: back-face depth → jelly front faces refracting the scene
 //   4. composite to the canvas (+ tet edges when "Show mesh" is on)
 
-import type { Anatomy, Piece, SkinMesh, Vec3, ViewMode } from '../contracts';
+import { MATERIAL_SLOTS, type Anatomy, type Piece, type SkinMesh, type Vec3, type ViewMode } from '../contracts';
 import { packAnatomyGPU } from '../anatomy/sdf';
 import { lookAt, mul, ortho, perspective, type M4 } from '../math/mat4';
 import { packPalette, type Variety } from './palette';
@@ -24,6 +24,8 @@ export interface Camera {
   fovY: number;
   /** Shifts the image up by this much of the screen height (off-centre lens). */
   lensShiftY?: number;
+  /** Shifts the image right by this much of the screen width. */
+  lensShiftX?: number;
 }
 
 /** A CPU-side triangle mesh in world space, uploaded as-is (used for the knife). */
@@ -74,6 +76,8 @@ const HDR = 'rgba16float';
 const SHADOW_SIZE = 2048;
 const FLOOR_SIZE = 512;
 const FLOOR_EXTENT = 11;
+/** Floats in the Frame uniform: four matrices, five vec4s, six palette slots and the material colours. */
+const FRAME_FLOATS = 84 + (6 + MATERIAL_SLOTS) * 4;
 
 export class Renderer {
   private format: GPUTextureFormat;
@@ -142,7 +146,7 @@ export class Renderer {
     context.configure({ device, format: this.format, alphaMode: 'opaque' });
     const d = device;
     const U = GPUBufferUsage;
-    this.frameBuf = d.createBuffer({ size: 688, usage: U.UNIFORM | U.COPY_DST });
+    this.frameBuf = d.createBuffer({ size: FRAME_FLOATS * 4, usage: U.UNIFORM | U.COPY_DST });
     this.cellBuf = d.createBuffer({ size: 16, usage: U.UNIFORM | U.COPY_DST });
     this.camLight = d.createBuffer({ size: 64, usage: U.UNIFORM | U.COPY_DST });
     this.camFloor = d.createBuffer({ size: 64, usage: U.UNIFORM | U.COPY_DST });
@@ -385,6 +389,7 @@ export class Renderer {
     const aspect = this.width / this.height;
     const near = 0.5, far = 200;
     const proj = perspective(cam.fovY, aspect, near, far);
+    proj[8] = -2 * (cam.lensShiftX ?? 0);
     proj[9] = -2 * (cam.lensShiftY ?? 0);
     const view = lookAt(cam.eye, cam.target, [0, 1, 0]);
     return { proj, view, viewProj: mul(proj, view), near, far };
@@ -405,7 +410,7 @@ export class Renderer {
     const floorView = lookAt([t[0], -0.5, t[2]], [t[0], 10, t[2]], [0, 0, -1]);
     const floorVP = mul(ortho(-FLOOR_EXTENT, FLOOR_EXTENT, -FLOOR_EXTENT, FLOOR_EXTENT, 0, 20), floorView);
 
-    const f = new Float32Array(172);
+    const f = new Float32Array(FRAME_FLOATS);
     f.set(viewProj, 0); f.set(view, 16); f.set(lightVP, 32); f.set(floorVP, 48);
     f.set([...cam.eye, 1], 64);
     f.set([...L, 0], 68);

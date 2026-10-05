@@ -54,6 +54,16 @@ export function primSdf(p: Primitive, x: number, y: number, z: number): number {
       const radial = Math.sqrt(rx * rx + ry * ry + rz * rz) - p.R;
       return Math.sqrt(radial * radial + h * h) - p.r;
     }
+    case Prim.Disc: {
+      // a flat washer: |b| is the half-thickness, b/|b| the axis
+      const ht = Math.hypot(p.b[0], p.b[1], p.b[2]) || 1e-9;
+      const qx = x - p.a[0], qy = y - p.a[1], qz = z - p.a[2];
+      const h = (qx * p.b[0] + qy * p.b[1] + qz * p.b[2]) / ht;
+      const rx = qx - (h * p.b[0]) / ht, ry = qy - (h * p.b[1]) / ht, rz = qz - (h * p.b[2]) / ht;
+      const rad = Math.sqrt(rx * rx + ry * ry + rz * rz);
+      const dx = p.r > 0 ? Math.max(rad - p.R, p.r - rad) : rad - p.R, dy = Math.abs(h) - ht;
+      return Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) + Math.min(Math.max(dx, dy), 0);
+    }
   }
   return Infinity;
 }
@@ -80,6 +90,10 @@ export function primBounds(p: Primitive): { lo: Vec3; hi: Vec3 } {
   switch (p.kind) {
     case Prim.Ellipsoid:
       return { lo: [p.a[0] - p.b[0], p.a[1] - p.b[1], p.a[2] - p.b[2]], hi: [p.a[0] + p.b[0], p.a[1] + p.b[1], p.a[2] + p.b[2]] };
+    case Prim.Disc: {
+      const e = p.R + Math.hypot(p.b[0], p.b[1], p.b[2]);
+      return { lo: [p.a[0] - e, p.a[1] - e, p.a[2] - e], hi: [p.a[0] + e, p.a[1] + e, p.a[2] + e] };
+    }
     case Prim.Torus: {
       const e = p.R + p.r;
       return { lo: [p.a[0] - e, p.a[1] - e, p.a[2] - e], hi: [p.a[0] + e, p.a[1] + e, p.a[2] + e] };

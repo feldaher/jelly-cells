@@ -15,9 +15,9 @@ const PLAN = [
 ];
 
 export const STAGES: Stage[] = [
-  { name: 'Surveil', title: 'Surveilling', blurb: 'The healthy brain: a small soma and long, fine, branching processes that sweep their territory every few minutes.' },
+  { name: 'Surveil', title: 'Surveilling', blurb: 'The healthy brain: a small soma and long, fine, branching processes that never rest. They extend and retract minute by minute, sampling their surroundings (Nimmerjahn et al. 2005).' },
   { name: 'Primed', title: 'Primed', blurb: 'After a first insult or with ageing: processes a little shorter and thicker, fewer branches, more lysosomes. The cell over-reacts to the next hit.' },
-  { name: 'Reactive', title: 'Reactive', blurb: 'Hours after an injury: ATP from damaged cells (sensed by P2Y12) draws the processes in toward the lesion. They retract and thicken, and the soma swells.' },
+  { name: 'Reactive', title: 'Reactive', blurb: 'Within minutes of an injury, ATP from damaged cells (sensed by P2Y12) draws the process tips toward the lesion, while the soma stays put (Davalos et al. 2005). Over the following hours the processes retract and thicken, the soma swells, and P2Y12 is switched off (Haynes et al. 2006).' },
   { name: 'Amoeboid', title: 'Amoeboid', blurb: 'The phagocytic state: round, mobile, with stubby pseudopods and a cytoplasm crowded with phagolysosomes full of debris.' },
 ];
 
@@ -111,7 +111,7 @@ function labels(an: Anatomy): Label[] {
       blurb: 'Threaded into the processes, fuelling their constant motion.' },
   ];
   if (an.stage <= 1) labels.push({ id: 'tip', name: 'Process tip', anchor: lerp3(tip.a, tip.b, 0.85), size: '< 1 µm',
-    blurb: 'Tips are packed with purinergic receptors (P2Y12) that sense ATP leaking from damaged cells: the "come here" signal.' });
+    blurb: 'The tips carry the purinergic receptor P2Y12, which senses ATP and ADP leaking from damaged cells: the "come here" signal. Without it, processes still move but cannot turn toward an injury (Haynes et al. 2006).' });
   return labels;
 }
 
