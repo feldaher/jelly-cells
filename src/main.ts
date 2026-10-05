@@ -9,6 +9,7 @@ import { raycast, rayPlane, screenRay, type Ray } from './app/pick';
 import { startGrab } from './physics/grab';
 import { axisAngleMat } from './math/mat3';
 import { bladeMesh } from './cut/knife';
+import { initWelcome } from './ui/welcome';
 import { Renderer, type Camera } from './render/renderer';
 import { VARIETIES, type Variety } from './render/palette';
 
@@ -292,6 +293,11 @@ function setupUi(world: World, renderer: Renderer) {
   bindSlider('damp', (x) => (world.params.damping = x));
   $('nudge').addEventListener('click', () => world.nudge());
   $('reset').addEventListener('click', () => world.reset());
+  const welcome = initWelcome((id) => {
+    if (select.value === id) return;
+    select.value = id;
+    select.dispatchEvent(new Event('change'));
+  });
   const inside = $<HTMLDialogElement>('inside');
   $('inside-open').addEventListener('click', () => inside.showModal());
   $('inside-close').addEventListener('click', () => inside.close());
@@ -306,7 +312,8 @@ function setupUi(world: World, renderer: Renderer) {
     statusText.textContent = world.paused ? 'WebGPU · Paused' : 'WebGPU · Live';
   });
   window.addEventListener('keydown', (e) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || inside.open) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || inside.open || welcome.open) return;
+    if (e.key === '?') welcome.showModal();
     if (e.key === ' ') { e.preventDefault(); pause.click(); }
     if (e.key === 'h') (document.querySelector('[data-tool="hand"]') as HTMLButtonElement).click();
     if (e.key === 'k') (document.querySelector('[data-tool="knife"]') as HTMLButtonElement).click();

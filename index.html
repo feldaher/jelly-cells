@@ -17,7 +17,7 @@
   <svg id="stroke" aria-hidden="true"><polyline points="" /></svg>
 
   <header class="title">
-    <p class="eyebrow">Biology Studies / No. 010</p>
+    <p class="eyebrow">Biology Studies / No. 010 <button id="welcome-open" class="about" aria-haspopup="dialog" title="What is this? (?)">About</button></p>
     <h1><span id="title1">Budding</span><span class="indent" id="title2">Yeast.</span></h1>
     <p class="tagline" id="tagline">A mother and her bud.<br />A little wobble.<br />Cut it open to look inside.</p>
     <div class="key">
@@ -165,6 +165,28 @@
       <p class="refs">XPBD: Macklin, Müller &amp; Chentanez, <i>MIG</i> 2016. Substepping: Macklin et al., <i>SCA</i> 2019. Rotation extraction: Müller et al., <i>MIG</i> 2016.</p>
       <p class="credit">After “Melon Jelly” (Material Studies No. 009). Anatomy is stylised but proportioned after <i>S. cerevisiae</i>.</p>
     </div>
+  </dialog>
+
+  <dialog class="welcome" id="welcome" aria-labelledby="welcome-title">
+    <p class="eyebrow">Biology Studies / No. 010</p>
+    <h2 id="welcome-title">Jelly Cells.</h2>
+    <p class="welcome-lead">Seven real cells, rebuilt as soft bodies. Their anatomy follows published measurements; their wobble is borrowed from gelatin.</p>
+    <ul class="welcome-cells">
+      <li><button data-cell="yeast" title="Start with Budding yeast"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="b" cx="19" cy="28" r="13"/><circle class="b" cx="35" cy="15" r="8"/><circle class="n" cx="22" cy="25" r="4.5"/></svg><span>Budding yeast</span></button></li>
+      <li><button data-cell="pombe" title="Start with Fission yeast"><svg viewBox="0 0 48 48" aria-hidden="true"><rect class="b" x="4" y="16" width="40" height="16" rx="8"/><path class="l" d="M24 16v16"/><circle class="n" cx="14" cy="24" r="4"/><circle class="n" cx="34" cy="24" r="4"/></svg><span>Fission yeast</span></button></li>
+      <li><button data-cell="ecoli" title="Start with E. coli"><svg viewBox="0 0 48 48" aria-hidden="true"><path class="b" d="M15 18h7q2 1.6 4 0h7a6 6 0 0 1 0 12h-7q-2-1.6-4 0h-7a6 6 0 0 1 0-12z"/><ellipse class="n" cx="17" cy="24" rx="4" ry="2.6"/><ellipse class="n" cx="31" cy="24" rx="4" ry="2.6"/></svg><span>E. coli</span></button></li>
+      <li><button data-cell="rbc" title="Start with Red blood cell"><svg viewBox="0 0 48 48" aria-hidden="true"><ellipse class="b r" cx="24" cy="24" rx="19" ry="12"/><ellipse class="d" cx="24" cy="24" rx="8" ry="4.5"/></svg><span>Red blood cell</span></button></li>
+      <li><button data-cell="fibroblast" title="Start with Fibroblast"><svg viewBox="0 0 48 48" aria-hidden="true"><path class="b" d="M3 30q9-3 14-10q7-8 18-7q9 1 10 7q0 6-9 8q-10 2-17 3q-10 2-16-1z"/><path class="l" d="M12 29l28-9M14 31l25-6"/><ellipse class="n" cx="27" cy="22" rx="6" ry="3.6"/></svg><span>Fibroblast</span></button></li>
+      <li><button data-cell="microglia" title="Start with Microglia"><svg viewBox="0 0 48 48" aria-hidden="true"><path class="p" d="M24 24L7 12M24 24L40 9M24 24L44 30M24 24L27 44M24 24L5 34M12 16l-5 6M35 13l7 3M38 28l2 8"/><circle class="b" cx="24" cy="24" r="7.5"/><ellipse class="n" cx="24" cy="24" rx="4.2" ry="3"/></svg><span>Microglia</span></button></li>
+      <li><button data-cell="neuron" title="Start with Neuron"><svg viewBox="0 0 48 48" aria-hidden="true"><path class="p" d="M17 26L4 17M17 26L6 37M17 26L13 9M8 20l-5 5M10 32l-6-1M17 26Q32 30 45 22"/><circle class="b" cx="17" cy="26" r="8"/><circle class="n" cx="17" cy="26" r="3.6"/><circle class="b" cx="45" cy="22" r="2"/></svg><span>Neuron</span></button></li>
+    </ul>
+    <ul class="welcome-do">
+      <li><b>Grab</b>Drag a cell to pull, stretch and twist it.</li>
+      <li><b>Cut</b>Take the knife and draw a stroke to see inside.</li>
+      <li><b>Play</b>Press ▶ and watch it grow, divide or heal.</li>
+      <li><b>Learn</b>Click a label for a real micrograph.</li>
+    </ul>
+    <div class="welcome-foot"><button id="welcome-start" class="welcome-start" autofocus>Meet the cells</button><span>Pick a cell above, or just start.</span></div>
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
