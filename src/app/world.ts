@@ -1,13 +1,13 @@
 // The world: pieces, the fixed-rate simulation loop, the hand, the knife.
 
-import type { Anatomy, CellType, CellTypeId, CutChild, Label, Piece, Plane, SectionEntry, SimMesh, SkinMesh, Stats, Vec3, ViewMode } from '../contracts';
+import { Mat, type Anatomy, type CellType, type CellTypeId, type CutChild, type Label, type Piece, type Plane, type SectionEntry, type SimMesh, type SkinMesh, type Stats, type StressId, type StressResponse, type StressState, type Vec3, type ViewMode } from '../contracts';
 import { deformationScalars } from '../teach/fields';
 import { anatomyOf, cellType, labelsAt } from '../cells';
 import { buildPiece } from '../mesh/piece';
 import { TetGrid, updateSkin } from '../mesh/surface';
 import { paramsFor, UNIT_CM } from '../physics/params';
 import { pieceSdf } from '../anatomy/sdf';
-import { mergeReports, sectionReport } from '../teach/section';
+import { mergeReports, sectionReport, shownEntries } from '../teach/section';
 import { step } from '../physics/xpbd';
 import { regrab, type GrabState } from '../physics/grab';
 import { applyKeyframe, buildKeyframe, KEYFRAME_DT, type MorphRequest } from './morph';
@@ -18,8 +18,16 @@ import { advanceKnife, assignSides, knifeConstraint, startKnife, type Knife } fr
 
 const DT = 1 / 60;
 export const MAX_PIECES = 12;
+/**
+ * Seconds over which the soft body follows a step in its rest volume. The measured drop is
+ * "immediate"; this only keeps the jelly from jolting.
+ */
+const VOLUME_LAG = 0.25;
+const UNSTRESSED: StressState = { relVolume: 1, signal: 0, foci: 0 };
 /** Wet mass density of a cell, pg/µm³. */
 const CELL_DENSITY = 1.1;
+/** Density of the water a cell loses when it shrinks, pg/µm³. */
+const WATER_DENSITY = 1;
 
 export interface CutReport {
   entries: SectionEntry[];
@@ -42,6 +50,12 @@ export class World {
   private morph: { target: number; rate: number; token: number; pending: boolean; lastAt: number } | null = null;
   private morphToken = 0;
   view: ViewMode = 'anatomy';
+  /** The stress the lab is set to and its dose (the response's baseline = unstressed); null for cell types without a stress response. */
+  stress: { id: StressId; dose: number } | null = null;
+  /** Cell minutes since the dose was last set. */
+  stressMinutes = 0;
+  /** The state the cell was in when the dose was last set. */
+  private stressFrom: StressState = UNSTRESSED;
   pieces: Piece[] = [];
   grab: GrabState | null = null;
   knife: Knife | null = null;
@@ -69,6 +83,9 @@ export class World {
     this.an = anatomyOf(id, 7, this.stage);
     this.labels = labelsAt(id, 7, this.stage);
     this.params = { ...paramsFor(this.type), firmness, damping };
+    const first = this.type.stress?.[0];
+    this.stress = first ? { id: first.id, dose: first.baseline } : null;
+    this.stressFrom = UNSTRESSED;
     this.template = buildPiece(this.an, [], 0);
     this.lastCut = null;
     this.reset();
@@ -78,6 +95,10 @@ export class World {
     this.cancelMorph();
     this.grab = null;
     this.knife = null; // any pending cut result is ignored
+    // a fresh, unstressed cell under the same stress
+    this.stressMinutes = 0;
+    this.stressFrom = UNSTRESSED;
+    this.params.volume = 1;
     const p = clonePiece(this.template, this.nextId++);
     placeOnFloor(p.sim, 0.6);
     this.pieces = [p];
@@ -100,6 +121,45 @@ export class World {
     if (n) { this.stepMs = (performance.now() - t0) / n; this.refreshSkins(); }
     if (n && this.morph) this.driveMorph();
   }
+
+  /**
+   * Sets the stress and its dose. The response carries on from the state the cell is in
+   * (where the response models that; see StressResponse.at); another kind of stress starts
+   * from an unstressed cell.
+   */
+  setStress(id: StressId, dose: number) {
+    if (!this.type.stress?.some((r) => r.id === id)) return;
+    this.stressFrom = this.stress?.id === id ? this.stressState() : UNSTRESSED;
+    this.stress = { id, dose };
+    this.stressMinutes = 0;
+  }
+
+  /** The response the lab is set to (null for cell types without one). */
+  get stressResponse(): StressResponse | null {
+    return this.type.stress?.find((r) => r.id === this.stress?.id) ?? null;
+  }
+
+  /** True while the dose is away from the response's baseline, or the cell is still recovering from one. */
+  get stressed(): boolean {
+    const r = this.stressResponse;
+    if (!r) return false;
+    if (this.stress!.dose !== r.baseline) return true;
+    const st = this.stressState();
+    return st.signal > 0 || st.foci > 0;
+  }
+
+  /** Where the cell is in its response (unstressed when its type has none). */
+  stressState(): StressState {
+    return this.stressResponse?.at(this.stress!.dose, this.stressMinutes, this.stressFrom) ?? UNSTRESSED;
+  }
+
+  /** Materials that are not there at the moment (a bitmask by material id): condensates, until a stress has formed foci. */
+  get hiddenMaterials(): number {
+    return this.stressState().foci > 0 ? 0 : 1 << Mat.Condensate;
+  }
+
+  /** Linear size of the rest shape relative to the mesh as built. */
+  private get restScale(): number { return Math.cbrt(this.params.volume); }
 
   /** True while the cell is morphing toward another stage. */
   get morphing(): boolean { return this.morph !== null; }
@@ -240,6 +300,11 @@ export class World {
       }
       if (k.phase === 'done') this.knife = null;
     }
+    const response = this.stressResponse;
+    if (response) {
+      if (this.stressed) this.stressMinutes += (DT * response.speedup) / 60;
+      this.params.volume += (this.stressState().relVolume - this.params.volume) * (1 - Math.exp(-DT / VOLUME_LAG));
+    }
     step(this.pieces, this.params, DT, {
       grab: this.grab,
       constrain: this.knife ? (pieces) => knifeConstraint(this.knife!, pieces) : undefined,
@@ -252,8 +317,8 @@ export class World {
     for (const p of this.pieces) {
       updateSkin(p.skin, p.sim);
       for (const o of p.organelles) updateSkin(o, p.sim);
-      if (this.view === 'anatomy') p.skin.scalar = undefined;
-      else deformationScalars(p);
+      if (this.view === 'deformation') deformationScalars(p, this.restScale);
+      else p.skin.scalar = undefined;
     }
   }
 
@@ -286,7 +351,7 @@ export class World {
     });
     if (crossed.length === 0) return 'miss';
     if (this.pieces.length + crossed.length > MAX_PIECES) return 'full';
-    const jobs = findSplits(crossed, plane);
+    const jobs = findSplits(crossed, plane, this.restScale);
     if (jobs.length === 0) return 'miss';
 
     // Handle toward the viewer: blade runs away from the camera.
@@ -352,7 +417,7 @@ export class World {
 
   private cutSerial = 0;
   private reportCut(entries: SectionEntry[]) {
-    this.lastCut = { entries, serial: ++this.cutSerial };
+    this.lastCut = { entries: shownEntries(entries, this.hiddenMaterials), serial: ++this.cutSerial };
   }
 
   private anchorCache = new WeakMap<Piece, { label: Label; tet: number; bary: Float64Array }[]>();
@@ -447,7 +512,8 @@ export class World {
     const massScale = UNIT_CM ** 3 * 1.1e-3; // kg per unit³
     const velScale = UNIT_CM * 1e-2; // m/s per unit/s
     return {
-      massPg: this.restTotal * this.type.umPerUnit ** 3 * CELL_DENSITY,
+      // a shrunken cell has lost water, and its mass with it
+      massPg: this.restTotal * this.type.umPerUnit ** 3 * (CELL_DENSITY - (1 - this.params.volume) * WATER_DENSITY),
       volumePct: (100 * cur) / rest,
       kineticMicroJ: ke * massScale * velScale ** 2 * 1e6,
       pieces: this.pieces.length,

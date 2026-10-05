@@ -2,7 +2,7 @@ import { loadFeature, describeFeature } from '@amiceli/vitest-cucumber';
 import { expect } from 'vitest';
 import html from '../index.html?raw';
 import { cellType } from '../src/cells';
-import { micrograph } from '../src/teach/micrographs';
+import { micrograph, NO_MICROGRAPH } from '../src/teach/micrographs';
 import type { CellType, CellTypeId, Micrograph } from '../src/contracts';
 
 const feature = await loadFeature('features/micrographs.feature');
@@ -17,9 +17,12 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
     Given('the <cell> cell type', () => { ct = cellType(v.cell as CellTypeId); });
     When('its labels are listed at every stage', () => {
       for (let s = 0; s < (ct.stages?.length ?? 1); s++) names.push(...ct.labels(ct.build(7, s)).map((l) => l.name));
-      names = [...new Set(names)];
+      names = [...new Set(names)].filter((n) => !NO_MICROGRAPH.has(n));
     });
-    Then('each label has a micrograph', () => { for (const [n, m] of pics()) expect(m, n).toBeDefined(); });
+    Then('each label has a micrograph, unless Commons has no image of that structure', () => {
+      for (const [n, m] of pics()) expect(m, n).toBeDefined();
+      for (const n of NO_MICROGRAPH) expect(micrograph(ct.id, n), n).toBeUndefined();
+    });
     And('each micrograph is public domain, CC0, CC BY or CC BY-SA with an author', () => {
       for (const [n, m] of pics()) {
         expect(m.license, n).toMatch(/^(Public domain|CC0|CC BY(-SA)? [0-9.]+)$/);

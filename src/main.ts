@@ -11,7 +11,8 @@ import { axisAngleMat } from './math/mat3';
 import { bladeMesh } from './cut/knife';
 import { initWelcome } from './ui/welcome';
 import { Renderer, type Camera } from './render/renderer';
-import { VARIETIES, type Variety } from './render/palette';
+import { reporterVariety, REPORTER_HIDDEN, VARIETIES, type Variety } from './render/palette';
+import { StressUi } from './ui/stress';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = $<HTMLCanvasElement>('stage');
@@ -25,6 +26,7 @@ const help = (w: World) => ({
   knife: '<b>Knife</b>Draw a stroke across the cell. The blade comes down along it and splits every piece it crosses. Then turn the halves over and look at the faces.',
 });
 let teach: TeachUi;
+let stressUi: StressUi;
 /** True while the stage slider is being dragged, so the morph does not move it under the finger. */
 let scrubbing = false;
 
@@ -88,6 +90,7 @@ async function main() {
   statusText.textContent = 'WebGPU · Live';
 
   teach = new TeachUi(world);
+  stressUi = new StressUi(world, () => setView(world, world.view === 'reporter' ? 'anatomy' : 'reporter'));
   setupUi(world, renderer);
   setupInput(world, renderer);
 
@@ -110,16 +113,23 @@ async function main() {
     cam.target[2] += (c[2] - cam.target[2]) * k;
     const c0 = camera();
     renderer.render(world.pieces, c0, {
-      variety, showMesh, time: now / 1000,
+      variety: shownVariety(world), showMesh, time: now / 1000,
       knife: world.knife ? bladeMesh(world.knife) : null,
-      highlight: teach.highlight, hidden: teach.hidden, absorb: world.type.absorb, view: world.view,
+      highlight: teach.highlight, hidden: teach.hidden | world.hiddenMaterials | (world.view === 'reporter' ? REPORTER_HIDDEN : 0), absorb: world.type.absorb, view: world.view,
     });
+    teach.setAbsent(world.hiddenMaterials);
     teach.update(renderer.viewProj, c0.eye, c0.target, canvas.clientWidth, canvas.clientHeight);
-    if (frame++ % 6 === 0) updateStats(world);
+    if (frame++ % 6 === 0) { updateStats(world); stressUi.update(); }
     if (debug && frame % 30 === 0) statusText.textContent = `step ${world.stepMs.toFixed(1)} ms`;
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
+}
+
+/** The palette on screen: the chosen variety, or the reporter's in the Reporter view. */
+function shownVariety(world: World): Variety {
+  const kind = world.view === 'reporter' ? world.stressResponse : null;
+  return kind ? reporterVariety(kind.look(world.stressState())) : variety;
 }
 
 function updateStats(world: World) {
@@ -145,6 +155,9 @@ function showType(world: World) {
   cam.target = [c[0], Math.min(3, Math.max(1.2, c[1])), c[2]];
   teach.setType(t, variety);
   showStage(world);
+  // the reporter view exists only for cells with a measured stress response
+  if (!t.stress && world.view === 'reporter') setView(world, 'anatomy');
+  stressUi.setType();
   const url = new URL(location.href);
   url.searchParams.set('cell', t.id);
   history.replaceState(null, '', url);
@@ -184,8 +197,20 @@ function previewStage(world: World, i: number) {
   $('stage-blurb').textContent = st.blurb;
 }
 
+/** Switches what the jelly is coloured by, and everything on the page that follows from it. */
+function setView(world: World, v: ViewMode) {
+  world.setView(v);
+  document.querySelectorAll<HTMLButtonElement>('.view[data-view]').forEach((o) => {
+    o.classList.toggle('active', o.dataset.view === v);
+    o.setAttribute('aria-checked', String(o.dataset.view === v));
+  });
+  stressUi.showReporter(v === 'reporter');
+  showColorbar(v);
+  applyTheme(world);
+}
+
 function showColorbar(view: ViewMode) {
-  $('colorbar').hidden = view === 'anatomy';
+  $('colorbar').hidden = view !== 'deformation';
   $('cb-title').textContent = 'Deformation (stretch or squeeze)';
   $('cb-min').textContent = '0%';
   $('cb-max').textContent = `${Math.round(STRAIN_FULL * 100)}%+`;
@@ -253,15 +278,7 @@ function setupUi(world: World, renderer: Renderer) {
   };
   $('stage-play').addEventListener('click', play);
 
-  document.querySelectorAll<HTMLButtonElement>('.view').forEach((b) => b.addEventListener('click', () => {
-    const v = b.dataset.view as ViewMode;
-    world.setView(v);
-    document.querySelectorAll<HTMLButtonElement>('.view').forEach((o) => {
-      o.classList.toggle('active', o === b);
-      o.setAttribute('aria-checked', String(o === b));
-    });
-    showColorbar(v);
-  }));
+  document.querySelectorAll<HTMLButtonElement>('.view[data-view]').forEach((b) => b.addEventListener('click', () => setView(world, b.dataset.view as ViewMode)));
   document.querySelectorAll<HTMLButtonElement>('.tool').forEach((b) => b.addEventListener('click', () => {
     tool = b.dataset.tool as typeof tool;
     document.querySelectorAll<HTMLButtonElement>('.tool').forEach((o) => {
@@ -280,12 +297,12 @@ function setupUi(world: World, renderer: Renderer) {
     b.addEventListener('click', () => {
       variety = v;
       sw.querySelectorAll('.swatch').forEach((o) => o.classList.toggle('active', o === b));
-      applyTheme();
+      applyTheme(world);
       teach.setVariety(v);
     });
     sw.appendChild(b);
   });
-  applyTheme();
+  applyTheme(world);
 
   const bindSlider = (id: string, set: (x: number) => void) => {
     const el = $<HTMLInputElement>(id), out = $(`${id}-out`);
@@ -329,11 +346,11 @@ function setupUi(world: World, renderer: Renderer) {
   });
 }
 
-function applyTheme() {
-  const root = document.documentElement;
-  root.style.setProperty('--bg', variety.background);
-  root.style.setProperty('--ink', variety.ink);
-  root.dataset.variety = variety.id;
+function applyTheme(world: World) {
+  const root = document.documentElement, v = shownVariety(world);
+  root.style.setProperty('--bg', v.background);
+  root.style.setProperty('--ink', v.ink);
+  root.dataset.variety = v.id;
 }
 
 function setupInput(world: World, renderer: Renderer) {

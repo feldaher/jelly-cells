@@ -43,6 +43,22 @@
       </div>
     </div>
 
+    <div class="group" id="stress-group" hidden>
+      <div class="slider-head"><span class="label">Stress</span><output id="stress-clock"></output></div>
+      <div class="seg" id="stress-kinds" role="radiogroup" aria-label="Kind of stress"></div>
+      <div class="doses" id="doses" role="radiogroup" aria-label="Dose"></div>
+      <button id="reporter-btn" class="btn toggle" aria-pressed="false" title="The cell as if this protein were tagged with GFP"><span class="switch"></span><span id="reporter-name">Reporter view</span></button>
+      <div class="stress-now">
+        <div><span class="label">Volume</span><b id="st-vol">—</b><i>% of unstressed</i></div>
+        <div><span class="label" id="st-signal-name">Signal</span><b id="st-signal">—</b><i>% of largest</i></div>
+      </div>
+      <table class="runs" id="runs" hidden>
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+      <p class="stage-blurb" id="stress-note"></p>
+    </div>
+
     <div class="group">
       <span class="label">Tool</span>
       <div class="seg" role="radiogroup" aria-label="Tool">
@@ -104,6 +120,11 @@
     <p class="fine">Mass is the real cell's, at 1.1 pg/µm³. The dynamics are illustrative: the cell moves as if it were a few centimetres of gelatin, because at true size a cell is far too small and viscous to wobble. Volume and energy are summed live over every tetrahedron.</p>
   </section>
 
+  <figure class="graph" id="stress-graph-fig" hidden>
+    <span class="label" id="graph-title">Over time</span>
+    <svg id="stress-graph" viewBox="0 0 240 80" preserveAspectRatio="none" role="img" aria-label="The reporter over time"></svg>
+    <figcaption><span>0</span><span id="graph-legend"></span><span id="graph-span"></span></figcaption>
+  </figure>
   <div class="scalebar" id="scalebar" aria-label="Scale bar"><i></i><span></span></div>
   <div class="colorbar" id="colorbar" hidden>
     <span class="label" id="cb-title">Strain</span>
@@ -142,6 +163,9 @@
       <p>Your stroke fixes a vertical blade plane. For each piece it crosses, the piece's current pose is fitted with a best rotation, and the plane is carried back into rest space. Each side becomes a new piece: the cell's signed distance field intersected with its half-spaces, rebuilt as a fresh tetrahedral mesh. The knife then presses a groove, breaks through, and hands every new particle the position and speed of the flesh it came from. The blade wedges the faces apart on its way down.</p>
       <h3>Deformation</h3>
       <p>The Deformation view colours each point by its mechanical strain: the Green–Lagrange strain of the tetrahedra around it, which is the part of the deformation left once rotation is taken out. A cell that is only tumbling stays dark; pull it and the colour gathers where it stretches or is squeezed. The field is averaged onto the particles and carried to the surface by the same barycentric weights as the skin, so knife faces show it inside too.</p>
+      <h3>The stress lab</h3>
+      <p><b>Salt.</b> Budding yeast can be put in salty medium. Water leaves, the cell shrinks, and the kinase Hog1 moves into the nucleus and switches on glycerol production until the volume is restored. The timing and the volumes are those measured by Babazadeh et al. (2013) at five NaCl doses: the signal peaks after 3, 5, 6, 15 and 25 minutes, later the more the cell is compressed, because crowding slows Hog1 down. The cell shrinks in the simulation because the rest shape of every tetrahedron is scaled to a relative volume J: the constraints become det F = J and ‖F − J<sup>⅓</sup>R‖<sub>F</sub>. The Volume readout is measured on the mesh. Between the measured points the curves are ours: the shape of the rise, an exponential recovery, and a nucleus drawn twice as bright as the cytoplasm at the largest response.</p>
+      <p><b>Heat.</b> Moved from 30 °C to 46 °C, the poly(A)-binding protein Pab1 leaves solution: after two minutes it is still mostly soluble, within minutes it is in stress granules, and after eight most of it pellets in a centrifuge (Wallace et al. 2015). At 42 °C it also assembles, detectably after ten minutes, but into particles too small for a light microscope: no foci (Riback et al. 2017). So the Pab1 view stays even at 42 °C while the assembled fraction climbs. The sources give no fraction at 42 °C and no count or size of the foci; the level drawn at 42 °C (half the largest response), the eight foci per mother cell and their 0.34 µm are ours. Recovery, which takes an hour or more and needs the disaggregase Hsp104, is not modelled.</p>
       <h3>Seeing inside</h3>
       <p>The skin and the organelles (nucleus, nucleolus, vacuoles, a cortical mitochondrial network, the septin ring) are separate meshes. Each vertex is pinned to a tetrahedron by barycentric weights, so they all wobble together. Every vertex also remembers its rest position. A knife face looks up the anatomy's distance fields at that position, so it shows an exact section through whatever organelle lies in the plane, membranes included.</p>
       <h3>Light through jelly</h3>
@@ -162,7 +186,7 @@
       <p>where w<sub>j</sub> is the inverse mass and λ starts from zero each substep. Volume is solved before and after shape. Velocities are then read back from positions, <b>v</b> = (<b>x</b> − <b>x</b><sub>prev</sub>)/h. Along every mesh edge the relative normal velocity is reduced by a factor 1 − e<sup>−ch</sup>, with c = 1 + 260 d<sup>2</sup> s<sup>−1</sup> for damping d, so the wobble dies away while the cell still falls and tumbles freely.</p>
       <p>The Deformation view shows the Green–Lagrange strain, which ignores rotation,</p>
       <div class="eq">E = ½(F<sup>T</sup>F − I),&ensp; shown as ‖E‖<sub>F</sub>, full colour at 30%.</div>
-      <p class="refs">XPBD: Macklin, Müller &amp; Chentanez, <i>MIG</i> 2016. Substepping: Macklin et al., <i>SCA</i> 2019. Rotation extraction: Müller et al., <i>MIG</i> 2016.</p>
+      <p class="refs">XPBD: Macklin, Müller &amp; Chentanez, <i>MIG</i> 2016. Substepping: Macklin et al., <i>SCA</i> 2019. Rotation extraction: Müller et al., <i>MIG</i> 2016. Osmotic shock: Babazadeh et al., <i>PLoS One</i> 2013; Schaber et al., <i>Eur Biophys J</i> 2010; Muzzey et al., <i>Cell</i> 2009. Heat shock: Wallace et al., <i>Cell</i> 2015; Riback et al., <i>Cell</i> 2017.</p>
       <p class="credit">After “Melon Jelly” (Material Studies No. 009). Anatomy is stylised but proportioned after <i>S. cerevisiae</i>.</p>
     </div>
   </dialog>

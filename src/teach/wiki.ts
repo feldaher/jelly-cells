@@ -19,6 +19,7 @@ const ARTICLES: Record<string, string> = {
   'Spindle': 'Spindle apparatus',
   'Contractile ring': 'Actomyosin ring',
   'Septum': 'Septum (cell biology)',
+  'Stress granule': 'Stress granule',
   // fission yeast
   'Vacuoles': 'Vacuole',
   'Birth scar': 'Schizosaccharomyces pombe',

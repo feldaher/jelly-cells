@@ -200,6 +200,12 @@ const LABELS: Record<string, string | { pic: string; caption: string }> = {
 };
 
 /** The micrograph for a label of a cell type, or undefined if it has none. */
+/**
+ * Labels whose card has no micrograph: Commons has no micrograph of the structure under a
+ * licence used here (searched 2026-10-05; for stress granules only a schematic and videos).
+ */
+export const NO_MICROGRAPH: ReadonlySet<string> = new Set(['Stress granule']);
+
 export function micrograph(cell: CellTypeId, name: string): Micrograph | undefined {
   const entry = LABELS[`${cell}:${name}`] ?? LABELS[name];
   if (!entry) return undefined;

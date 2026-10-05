@@ -19,7 +19,7 @@ export function defaultParams(): SimParams {
   materialStiffness[Mat.Mitochondrion] = 1.3;
   materialStiffness[Mat.Septin] = 3;
   materialStiffness[Mat.BudScar] = 4;
-  return { firmness: 0.4, damping: 0.45, substeps: 12, gravity: GRAVITY, friction: 0.7, materialStiffness };
+  return { firmness: 0.4, damping: 0.45, substeps: 12, gravity: GRAVITY, friction: 0.7, materialStiffness, volume: 1 };
 }
 
 /** Default parameters with a cell type's material stiffnesses. */

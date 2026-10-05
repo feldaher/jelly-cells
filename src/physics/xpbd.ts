@@ -66,7 +66,7 @@ export function step(pieces: Piece[], params: SimParams, dt: number, extra: Step
   for (let s = 0; s < n; s++) {
     for (const p of pieces) predict(p.sim, params.gravity, sdt);
     if (extra.grab) applyGrab(extra.grab, sdt);
-    for (const p of pieces) solveTets(p.sim, mu, lambda, params.materialStiffness, sdt);
+    for (const p of pieces) solveTets(p.sim, mu, lambda, params.materialStiffness, sdt, params.volume);
     extra.constrain?.(pieces, sdt);
     if (extra.collide !== false) {
       collider.solve(pieces, (extra.time ?? Infinity) + s * sdt);
@@ -114,12 +114,16 @@ function dampEdges(s: SimMesh, k: number) {
   }
 }
 
-/** One Gauss–Seidel pass over volume then shape constraints of every tet. */
-function solveTets(s: SimMesh, mu: number, lambda: number, matStiff: number[], sdt: number) {
+/**
+ * One Gauss–Seidel pass over volume then shape constraints of every tet. `J` is the volume of
+ * the rest shape relative to the mesh as built: the rest shape is the built one scaled by J^⅓.
+ */
+function solveTets(s: SimMesh, mu: number, lambda: number, matStiff: number[], sdt: number, J: number) {
   const { pos: x, invMass: W, tets: T, restInv: M, restVol: V, tetMaterial: mat } = s;
   const Q = rotationsOf(s);
   const isdt2 = 1 / (sdt * sdt);
   const g = new Float64Array(12);
+  const kLin = Math.cbrt(J);
   for (let t = 0, nt = V.length; t < nt; t++) {
     const i0 = 3 * T[4 * t], i1 = 3 * T[4 * t + 1], i2 = 3 * T[4 * t + 2], i3 = 3 * T[4 * t + 3];
     const w0 = W[i0 / 3], w1 = W[i1 / 3], w2 = W[i2 / 3], w3 = W[i3 / 3];
@@ -139,14 +143,14 @@ function solveTets(s: SimMesh, mu: number, lambda: number, matStiff: number[], s
       // P = ∂C/∂F by columns.
       let p0x, p0y, p0z, p1x, p1y, p1z, p2x, p2y, p2z;
       if (pass !== 1) {
-        // Volume: C = det F − 1 (solved either side of the shape constraint).
+        // Volume: C = det F − J (solved either side of the shape constraint).
         p0x = f1y * f2z - f1z * f2y; p0y = f1z * f2x - f1x * f2z; p0z = f1x * f2y - f1y * f2x;
         p1x = f2y * f0z - f2z * f0y; p1y = f2z * f0x - f2x * f0z; p1z = f2x * f0y - f2y * f0x;
         p2x = f0y * f1z - f0z * f1y; p2y = f0z * f1x - f0x * f1z; p2z = f0x * f1y - f0y * f1x;
-        C = f0x * p0x + f0y * p0y + f0z * p0z - 1;
+        C = f0x * p0x + f0y * p0y + f0z * p0z - J;
         alpha = 1 / (lambda * k * V[t]);
       } else {
-        // Shape: C = ‖F − R‖ with R the rotation of F (Müller et al. 2016, warm-started).
+        // Shape: C = ‖F − J^⅓ R‖ with R the rotation of F (Müller et al. 2016, warm-started).
         const q = 4 * t;
         let qx = Q[q], qy = Q[q + 1], qz = Q[q + 2], qw = Q[q + 3];
         let r00 = 1, r10 = 0, r20 = 0, r01 = 0, r11 = 1, r21 = 0, r02 = 0, r12 = 0, r22 = 1;
@@ -176,9 +180,9 @@ function solveTets(s: SimMesh, mu: number, lambda: number, matStiff: number[], s
         r00 = 1 - 2 * (qy * qy + qz * qz); r10 = 2 * (qx * qy + qz * qw); r20 = 2 * (qx * qz - qy * qw);
         r01 = 2 * (qx * qy - qz * qw); r11 = 1 - 2 * (qx * qx + qz * qz); r21 = 2 * (qy * qz + qx * qw);
         r02 = 2 * (qx * qz + qy * qw); r12 = 2 * (qy * qz - qx * qw); r22 = 1 - 2 * (qx * qx + qy * qy);
-        p0x = f0x - r00; p0y = f0y - r10; p0z = f0z - r20;
-        p1x = f1x - r01; p1y = f1y - r11; p1z = f1z - r21;
-        p2x = f2x - r02; p2y = f2y - r12; p2z = f2z - r22;
+        p0x = f0x - kLin * r00; p0y = f0y - kLin * r10; p0z = f0z - kLin * r20;
+        p1x = f1x - kLin * r01; p1y = f1y - kLin * r11; p1z = f1z - kLin * r21;
+        p2x = f2x - kLin * r02; p2y = f2y - kLin * r12; p2z = f2z - kLin * r22;
         C = Math.sqrt(p0x * p0x + p0y * p0y + p0z * p0z + p1x * p1x + p1y * p1y + p1z * p1z + p2x * p2x + p2y * p2y + p2z * p2z);
         if (C < 1e-9) continue;
         const ic = 1 / C;
