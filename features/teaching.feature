@@ -24,6 +24,13 @@ Feature: Teaching aids
     Then its length is a round number of micrometres
     And it is between 50 and 160 pixels wide
 
+  Scenario: The scale bar and the readouts reach down to viruses
+    Given a zoom of 2500 pixels per micrometre
+    When the scale bar is chosen
+    Then it reads 50 nm and is between 50 and 160 pixels wide
+    And a mass of 0.0007 pg is given as 0.7 fg
+    And a mass of 74 pg stays in pg
+
   Scenario: Crowded labels do not overlap
     Given twelve labels anchored close together
     When the labels are laid out
@@ -49,3 +56,8 @@ Feature: Teaching aids
       | fibroblast |
       | microglia  |
       | neuron     |
+      | animal     |
+      | plant      |
+      | aspergillus|
+      | phage      |
+      | coronavirus|

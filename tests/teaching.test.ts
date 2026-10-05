@@ -2,7 +2,7 @@ import { loadFeature, describeFeature } from '@amiceli/vitest-cucumber';
 import { expect } from 'vitest';
 import { cellType } from '../src/cells';
 import { sectionReport } from '../src/teach/section';
-import { scaleBar } from '../src/teach/scale';
+import { lengthText, massText, scaleBar } from '../src/teach/scale';
 import { layoutLabels, type Box } from '../src/teach/labels';
 import { wikiUrl } from '../src/teach/wiki';
 import { Mat, type Anatomy, type CellType, type SectionEntry } from '../src/contracts';
@@ -58,6 +58,19 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
       expect(bar.px).toBeGreaterThanOrEqual(50);
       expect(bar.px).toBeLessThanOrEqual(160);
     });
+  });
+
+  Scenario('The scale bar and the readouts reach down to viruses', ({ Given, When, Then, And }) => {
+    let bar: { um: number; px: number };
+    Given('a zoom of 2500 pixels per micrometre', () => {});
+    When('the scale bar is chosen', () => { bar = scaleBar(2500); });
+    Then('it reads 50 nm and is between 50 and 160 pixels wide', () => {
+      expect(lengthText(bar.um)).toBe('50 nm');
+      expect(bar.px).toBeGreaterThanOrEqual(50); expect(bar.px).toBeLessThanOrEqual(160);
+      expect(lengthText(2)).toBe('2 µm'); expect(lengthText(0.5)).toBe('0.5 µm');
+    });
+    And('a mass of 0.0007 pg is given as 0.7 fg', () => { expect(massText(0.0007)).toEqual({ value: '0.7', unit: 'fg' }); });
+    And('a mass of 74 pg stays in pg', () => { expect(massText(74)).toEqual({ value: '74', unit: 'pg' }); });
   });
 
   Scenario('Crowded labels do not overlap', ({ Given, When, Then }) => {

@@ -96,12 +96,12 @@
   <section class="readout">
     <p class="help" id="help"></p>
     <div class="stats">
-      <div><span class="label">Mass</span><b id="s-mass">—</b><i>pg</i></div>
+      <div><span class="label">Mass</span><b id="s-mass">—</b><i id="s-mass-unit">pg</i></div>
       <div><span class="label">Volume</span><b id="s-vol">—</b><i>% of rest</i></div>
       <div><span class="label">Kinetic</span><b id="s-ke">—</b><i>µJ</i></div>
       <div><span class="label">Pieces</span><b id="s-pieces">—</b></div>
     </div>
-    <p class="fine">Mass is the real cell's, at 1.1 pg/µm³. The dynamics are illustrative: the cell moves as if it were a few centimetres of gelatin, because at true size a cell is far too small and viscous to wobble. Volume and energy are summed live over every tetrahedron.</p>
+    <p class="fine">Mass is the drawn volume at a cell's density, 1.1 pg/µm³. The dynamics are illustrative: the cell moves as if it were a few centimetres of gelatin, because at true size a cell is far too small and viscous to wobble. Volume and energy are summed live over every tetrahedron.</p>
   </section>
 
   <div class="scalebar" id="scalebar" aria-label="Scale bar"><i></i><span></span></div>
@@ -170,7 +170,7 @@
   <dialog class="welcome" id="welcome" aria-labelledby="welcome-title">
     <p class="eyebrow">Biology Studies / No. 010</p>
     <h2 id="welcome-title">Jelly Cells.</h2>
-    <p class="welcome-lead">Seven real cells, rebuilt as soft bodies. Their anatomy follows published measurements; their wobble is borrowed from gelatin.</p>
+    <p class="welcome-lead">Ten cells and two viruses, rebuilt as soft bodies. Their anatomy follows published measurements; their wobble is borrowed from gelatin.</p>
     <ul class="welcome-cells">
       <li><button data-cell="yeast" title="Start with Budding yeast"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="b" cx="19" cy="28" r="13"/><circle class="b" cx="35" cy="15" r="8"/><circle class="n" cx="22" cy="25" r="4.5"/></svg><span>Budding yeast</span></button></li>
       <li><button data-cell="pombe" title="Start with Fission yeast"><svg viewBox="0 0 48 48" aria-hidden="true"><rect class="b" x="4" y="16" width="40" height="16" rx="8"/><path class="l" d="M24 16v16"/><circle class="n" cx="14" cy="24" r="4"/><circle class="n" cx="34" cy="24" r="4"/></svg><span>Fission yeast</span></button></li>
@@ -179,6 +179,11 @@
       <li><button data-cell="fibroblast" title="Start with Fibroblast"><svg viewBox="0 0 48 48" aria-hidden="true"><path class="b" d="M3 30q9-3 14-10q7-8 18-7q9 1 10 7q0 6-9 8q-10 2-17 3q-10 2-16-1z"/><path class="l" d="M12 29l28-9M14 31l25-6"/><ellipse class="n" cx="27" cy="22" rx="6" ry="3.6"/></svg><span>Fibroblast</span></button></li>
       <li><button data-cell="microglia" title="Start with Microglia"><svg viewBox="0 0 48 48" aria-hidden="true"><path class="p" d="M24 24L7 12M24 24L40 9M24 24L44 30M24 24L27 44M24 24L5 34M12 16l-5 6M35 13l7 3M38 28l2 8"/><circle class="b" cx="24" cy="24" r="7.5"/><ellipse class="n" cx="24" cy="24" rx="4.2" ry="3"/></svg><span>Microglia</span></button></li>
       <li><button data-cell="neuron" title="Start with Neuron"><svg viewBox="0 0 48 48" aria-hidden="true"><path class="p" d="M17 26L4 17M17 26L6 37M17 26L13 9M8 20l-5 5M10 32l-6-1M17 26Q32 30 45 22"/><circle class="b" cx="17" cy="26" r="8"/><circle class="n" cx="17" cy="26" r="3.6"/><circle class="b" cx="45" cy="22" r="2"/></svg><span>Neuron</span></button></li>
+      <li><button data-cell="animal" title="Start with Animal cell"><svg viewBox="0 0 48 48" aria-hidden="true"><ellipse class="b" cx="24" cy="25" rx="19" ry="16"/><circle class="n" cx="26" cy="25" r="7"/><path class="l" d="M10 22q3-4 6-2M12 31q3 3 6 1"/></svg><span>Animal cell</span></button></li>
+      <li><button data-cell="plant" title="Start with Plant cell"><svg viewBox="0 0 48 48" aria-hidden="true"><rect class="b" x="4" y="13" width="40" height="22" rx="5"/><rect class="d" x="9" y="18" width="23" height="12" rx="4"/><circle class="n" cx="38" cy="24" r="3.5"/></svg><span>Plant cell</span></button></li>
+      <li><button data-cell="aspergillus" title="Start with Aspergillus hypha"><svg viewBox="0 0 48 48" aria-hidden="true"><path class="b" d="M3 18h34a6 6 0 0 1 0 12H3z"/><path class="l" d="M15 18v12"/><circle class="n" cx="9" cy="24" r="3"/><circle class="n" cx="23" cy="24" r="3"/><circle class="n" cx="32" cy="24" r="3"/></svg><span>Aspergillus hypha</span></button></li>
+      <li><button data-cell="phage" title="Start with Bacteriophage T4"><svg viewBox="0 0 48 48" aria-hidden="true"><path class="b" d="M24 3l9 5v10l-9 5-9-5V8z"/><path class="p" d="M24 23v14M18 37h12M18 37l-8 8M30 37l8 8M21 37l-3 8M27 37l3 8"/></svg><span>Bacteriophage T4</span></button></li>
+      <li><button data-cell="coronavirus" title="Start with Coronavirus"><svg viewBox="0 0 48 48" aria-hidden="true"><path class="p" d="M24 4v8M24 36v8M4 24h8M36 24h8M10 10l6 6M32 32l6 6M38 10l-6 6M16 32l-6 6"/><circle class="b" cx="24" cy="24" r="12"/></svg><span>Coronavirus</span></button></li>
     </ul>
     <ul class="welcome-do">
       <li><b>Grab</b>Drag a cell to pull, stretch and twist it.</li>

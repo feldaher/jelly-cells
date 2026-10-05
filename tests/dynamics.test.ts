@@ -19,7 +19,7 @@ function stacks(an: Anatomy, material: number) {
 
 describeFeature(feature, ({ Scenario }) => {
   Scenario('Titles are set the same way for every cell', ({ Given, Then, And }) => {
-    Given('every cell type', () => expect(CELL_TYPES.length).toBe(7));
+    Given('every cell type', () => expect(CELL_TYPES.length).toBe(12));
     Then('each title is one or two lines and ends with a full stop', () => {
       for (const c of CELL_TYPES) {
         expect(c.title.length, c.id).toBeGreaterThanOrEqual(1);

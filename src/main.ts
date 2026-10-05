@@ -1,6 +1,7 @@
 import './style.css';
 import type { CellTypeId, Vec3, ViewMode } from './contracts';
 import { STRAIN_FULL } from './teach/fields';
+import { massText } from './teach/scale';
 import { CELL_TYPES } from './cells';
 import { TeachUi } from './ui/teach';
 import { World } from './app/world';
@@ -124,7 +125,9 @@ async function main() {
 
 function updateStats(world: World) {
   const s = world.stats();
-  $('s-mass').textContent = `≈${Math.round(s.massPg)}`;
+  const mass = massText(s.massPg);
+  $('s-mass').textContent = `≈${mass.value}`;
+  $('s-mass-unit').textContent = mass.unit;
   $('s-vol').textContent = s.volumePct.toFixed(1);
   $('s-ke').textContent = s.kineticMicroJ < 100 ? s.kineticMicroJ.toFixed(2) : Math.round(s.kineticMicroJ).toString();
   $('s-pieces').textContent = String(s.pieces);

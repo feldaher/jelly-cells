@@ -19,6 +19,11 @@ Feature: Real micrographs on the label cards
       | fibroblast |
       | microglia  |
       | neuron     |
+      | animal     |
+      | plant      |
+      | aspergillus|
+      | phage      |
+      | coronavirus|
 
   Scenario: The physics notes open in a modal
     Given the page markup

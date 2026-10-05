@@ -4,7 +4,7 @@
 import { Mat, type CellType, type Label, type Material, type Vec3 } from '../contracts';
 import type { World } from '../app/world';
 import { layoutLabels } from '../teach/labels';
-import { scaleBar } from '../teach/scale';
+import { lengthText, scaleBar } from '../teach/scale';
 import { wikiUrl } from '../teach/wiki';
 import { commonsPage, licenseUrl, micrograph } from '../teach/micrographs';
 import { notableEntries } from '../teach/section';
@@ -240,7 +240,7 @@ export class TeachUi {
     const bar = scaleBar(pxPerUnit / this.type.umPerUnit);
     const el = $('scalebar');
     (el.firstElementChild as HTMLElement).style.width = `${bar.px}px`;
-    (el.lastElementChild as HTMLElement).textContent = `${bar.um} µm`;
+    (el.lastElementChild as HTMLElement).textContent = lengthText(bar.um);
   }
 
   private updateCutReport() {
@@ -250,13 +250,18 @@ export class TeachUi {
     const name = (m: Material) => this.type.key.find((k) => k.material === m)?.name ?? 'Other';
     const total = cut.entries.reduce((a, e) => a + e.areaUm2, 0);
     const rows = notableEntries(cut.entries).map((e) => {
-      const detail = e.count > 1 ? `${e.count} profiles, up to ${fmt(e.widthUm)} µm` : `${fmt(e.widthUm)} µm across`;
+      const detail = e.count > 1 ? `${e.count} profiles, up to ${width(e.widthUm)}` : `${width(e.widthUm)} across`;
       return `<li><i style="--c:${materialHex(this.variety, e.material)}"></i><b>${name(e.material)}</b><span>${detail}</span></li>`;
     });
     $('cut-list').innerHTML = rows.length ? rows.join('') : '<li class="none">Only cytoplasm. Try cutting closer to the middle.</li>';
-    $('cut-area').textContent = `Section ≈ ${fmt(total)} µm²`;
+    $('cut-area').textContent = total < 0.1 ? `Section ≈ ${Math.round(total * 1e6)} nm²` : `Section ≈ ${fmt(total)} µm²`;
     $('cut-report').hidden = false;
   }
+}
+
+/** A width in the cut report: µm to one decimal, or nm for the smallest specimens. */
+function width(um: number) {
+  return um < 0.5 ? lengthText(um) : `${fmt(um)} µm`;
 }
 
 function fmt(x: number) {

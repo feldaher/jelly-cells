@@ -1,6 +1,6 @@
 # Jelly Cells (Biology Studies No. 010)
 
-Cells as soft bodies. Grab them, stretch them, give them a nudge, and cut them open with a knife to see what is inside. Seven specimens are in the dropdown:
+Cells as soft bodies. Grab them, stretch them, give them a nudge, and cut them open with a knife to see what is inside. Twelve specimens are in the dropdown: ten cells and two viruses.
 
 | Cell | Inside |
 |---|---|
@@ -11,6 +11,11 @@ Cells as soft bodies. Grab them, stretch them, give them a nudge, and cut them o
 | **Fibroblast** | flat and spread: nucleus, nucleoli, Golgi and centrosome, stress fibres ending in focal adhesions, mitochondria |
 | **Microglia** | ramified processes, bean-shaped nucleus, lysosomes / phagolysosome, mitochondria |
 | **Neuron** | soma, axon hillock, axon + terminal, dendrites, nucleolus, Nissl bodies, mitochondria |
+| **Animal cell** | the textbook composite: plasma membrane, nucleus + nucleolus, rough ER, Golgi stacks, centrosome, mitochondria, lysosomes, peroxisomes |
+| **Plant cell** | a palisade cell of a leaf: cell wall, central vacuole, 48 chloroplasts lining the wall, nucleus, rough ER, Golgi stacks, mitochondria, peroxisomes |
+| **Aspergillus hypha** | the growing tip of a mould: wall, Spitzenkörper, several nuclei in one compartment, a septum with its pore and Woronin bodies, vacuoles, mitochondria |
+| **Bacteriophage T4** | head with its DNA, tail sheath around the tail tube, baseplate, six long tail fibres folded up as on a free phage (all dimensions from cryo-EM) |
+| **Coronavirus** | SARS-CoV-2: envelope, 24 spikes, RNA packed in beads |
 
 Teaching aids:
 - **Labels** that ride with the jelly; toggle them with the Labels button or `L`. Click one for a card with its real size, what it does, a real micrograph of the structure (EM, fluorescence or light, from Wikimedia Commons, credited with author and licence; `src/teach/micrographs.ts`) and a link to the Wikipedia article (`src/teach/wiki.ts`).
@@ -29,7 +34,7 @@ Teaching aids:
   A cell that reaches the end of its cycle really divides: the two daughters become separate soft bodies. Growth laws, sizes and timings of the three dividing cells come from published measurements (`src/cells/cycle/`, with sources in `docs/cell-cycles-organelles.md`).
 - **Views**: *Anatomy* or *Deformation* (mechanical strain: Green–Lagrange strain from 0 to 30 %+, so you see where a pull or a squeeze goes). Deformation colours the knife faces too, so a cut shows it inside.
 
-`?cell=neuron` (or `rbc`, `fibroblast`, `microglia`, `yeast`, `pombe`, `ecoli`) opens a specific cell.
+`?cell=neuron` (or `rbc`, `fibroblast`, `microglia`, `yeast`, `pombe`, `ecoli`, `animal`, `plant`, `aspergillus`, `phage`, `coronavirus`) opens a specific specimen.
 
 It is a static site: WebGPU for rendering and TypeScript XPBD physics on the CPU. There are no runtime dependencies.
 
@@ -81,7 +86,7 @@ The types every layer agrees on live in `src/contracts.ts`. Behaviour is specifi
 
 ## Scale
 
-Each cell type maps sim units to µm (E. coli 0.35, yeast 1, fission yeast 1.25, RBC 1.25, microglia 1.5, neuron 2, fibroblast 4), so labels, the scale bar, the cut report and the mass are in real units. The *dynamics* are illustrative: every cell moves as if it were a few centimetres of gelatin. At true size a cell lives at very low Reynolds number and would never visibly wobble.
+Each specimen maps sim units to µm (coronavirus 0.018, bacteriophage 0.02, E. coli 0.35, yeast 1, Aspergillus 1, fission yeast 1.25, RBC 1.25, microglia 1.5, neuron 2, animal cell 3, fibroblast 4, plant cell 6), so labels, the scale bar, the cut report and the mass are in real units. The specimens therefore all look about the same size on screen while spanning a factor of 500: watch the scale bar. The *dynamics* are illustrative: every cell moves as if it were a few centimetres of gelatin. At true size a cell lives at very low Reynolds number and would never visibly wobble.
 
 ## Image credits
 

@@ -31,9 +31,16 @@ export const Mat = {
   Golgi: 16,
   /** Chemoreceptor array. */
   Receptor: 17,
+  Chloroplast: 18,
+  /** Peroxisomes, and the Woronin bodies fungi make from them. */
+  Peroxisome: 19,
+  /** A virus's nucleic acid, packed with or without protein. */
+  Genome: 20,
+  /** Structural protein of a virus drawn as a solid part: a tail tube, a spike. */
+  ViralProtein: 21,
 } as const;
 export type Material = (typeof Mat)[keyof typeof Mat];
-export const MATERIAL_COUNT = 18;
+export const MATERIAL_COUNT = 22;
 /** Colour slots for materials in the GPU frame uniform (see common.wgsl). */
 export const MATERIAL_SLOTS = 24;
 
@@ -116,7 +123,7 @@ export interface Anatomy {
  */
 export type TubeMotion = 'instability' | 'transport';
 
-export type CellTypeId = 'yeast' | 'pombe' | 'ecoli' | 'rbc' | 'fibroblast' | 'microglia' | 'neuron';
+export type CellTypeId = 'yeast' | 'pombe' | 'ecoli' | 'rbc' | 'fibroblast' | 'microglia' | 'neuron' | 'animal' | 'plant' | 'aspergillus' | 'phage' | 'coronavirus';
 
 /** A teaching label pinned to a point inside the cell. */
 export interface Label {
