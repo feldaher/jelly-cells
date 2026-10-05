@@ -5,7 +5,7 @@
 // polarises (Kupfer et al. 1982), with the nucleus pulled rearward (Gomes et al. 2005);
 // adhesion lengths follow Goffin et al. 2006.
 
-import { Mat, type Anatomy, type BodyPart, type CellType, type Label, type Stage, type Vec3 } from '../contracts';
+import { Mat, Prim, type Anatomy, type BodyPart, type CellType, type Label, type Stage, type Vec3 } from '../contracts';
 import { rng } from '../math/mat3';
 import { cellSdf, materialAt, primSdf } from '../anatomy/sdf';
 import { addTubule, cone, ell, finish, lerp3, union, wander } from './common';
@@ -91,8 +91,10 @@ function build(seed = 7, stage = 2): Anatomy {
     return [nc[0] + cx * (edge + out), gy, nc[2] + cz * (edge + out)];
   };
   o.push(ell(beside(plan.golgi, 0.16), [0.08, 0.08, 0.08], Mat.Spindle));
+  // A ribbon of three stacks, each of seven flat cisternae (Ladinsky et al. 1999, J Cell Biol 144:1135).
+  // A real stack is about 1 µm wide; drawn 1.6 µm so that it can be seen.
   const golgi = [-0.36, 0, 0.36].map((d) => beside(plan.golgi + d, 0.5));
-  for (const g of golgi) o.push(ell(g, [0.2, 0.09, 0.22], Mat.Golgi));
+  for (const g of golgi) for (let i = 0; i < 7; i++) o.push({ kind: Prim.Disc, material: Mat.Golgi, a: [g[0], g[1] + (i - 3) * 0.034, g[2]], b: [0, 0.011, 0], R: 0.2, r: 0 });
 
   // Actin fibres along the base, anchored in adhesions at their ends.
   const yF = 0.18;
@@ -184,8 +186,8 @@ function labels(an: Anatomy): Label[] {
   labels.push(
     { id: 'golgi', name: 'Golgi apparatus', material: Mat.Golgi, anchor: golgi.a, size: '',
       blurb: polarised
-        ? 'Stacked cisternae that sort and ship membrane and matrix proteins. In a cell at a wound edge the Golgi turns to face the wound within minutes (Kupfer et al. 1982), so that new membrane and collagen are delivered to the front.'
-        : 'Stacked cisternae that sort and ship membrane and matrix proteins, gathered around the centrosome on one side of the nucleus. Which side is arbitrary until the cell picks a direction.' },
+        ? 'A ribbon of stacks, each of about seven flat cisternae (Ladinsky et al. 1999), that sort and ship membrane and matrix proteins. In a cell at a wound edge the Golgi turns to face the wound within minutes (Kupfer et al. 1982), so that new membrane and collagen are delivered to the front.'
+        : 'A ribbon of stacks, each of about seven flat cisternae (Ladinsky et al. 1999), that sort and ship membrane and matrix proteins, gathered around the centrosome on one side of the nucleus. Which side is arbitrary until the cell picks a direction.' },
     { id: 'centrosome', name: 'Centrosome', material: Mat.Spindle, anchor: mtoc.a, size: '',
       blurb: polarised
         ? 'The microtubule-organising centre. It stays near the middle of the cell while the nucleus is pulled rearward by actin flowing back from the leading edge: that is how it comes to lie in front of the nucleus (Gomes et al. 2005).'
@@ -209,7 +211,7 @@ function labels(an: Anatomy): Label[] {
 export const fibroblast: CellType = {
   id: 'fibroblast',
   name: 'Fibroblast',
-  title: ['Fibro-', 'blast.'],
+  title: ['Fibroblast.'],
   tagline: ['Flat, spread and pulling.', 'The cell that closes wounds.', 'Cut it to find its fibres.'],
   umPerUnit: 4,
   build,

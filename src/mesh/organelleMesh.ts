@@ -9,6 +9,11 @@ export interface OrganelleTemplate {
   mesh: RestMesh;
 }
 
+/** Added to the whole part of a vertex coordinate when the organelle moves (a tubule with a `motion`). */
+export const COORD_MOVING = 128;
+/** The fraction of a vertex coordinate is the distance along the tube divided by this (sim units). */
+export const COORD_SPAN = 32;
+
 function finish(pos: number[], idx: number[]): RestMesh {
   return { pos: new Float32Array(pos), idx: new Uint32Array(idx), isCutFace: new Uint8Array(pos.length / 3) };
 }
@@ -92,13 +97,15 @@ export function tubeMesh(pts: Vec3[], radius: number, sides = 8, sub = 4): RestM
   // Rings along the curve with parallel-transported frames; caps shrink to the tips.
   const tangents = curve.map((_, i) => norm(sub3(curve[Math.min(i + 1, curve.length - 1)], curve[Math.max(i - 1, 0)])));
   let [u] = basis(tangents[0]);
-  const rings: { c: Vec3; r: number; u: Vec3; v: Vec3 }[] = [];
+  const rings: { c: Vec3; r: number; u: Vec3; v: Vec3; s: number }[] = [];
+  let travelled = 0;
   const capSteps = 3;
   for (let i = 0; i < curve.length; i++) {
     const t = tangents[i];
     u = norm(sub3(u, scale(t, dot(u, t))));
     const v = cross(t, u);
-    rings.push({ c: curve[i], r: radius, u, v });
+    if (i > 0) travelled += Math.hypot(curve[i][0] - curve[i - 1][0], curve[i][1] - curve[i - 1][1], curve[i][2] - curve[i - 1][2]);
+    rings.push({ c: curve[i], r: radius, u, v, s: travelled });
   }
   const capRings = (end: 0 | 1) => {
     const base = end ? rings[rings.length - 1] : rings[0];
@@ -106,15 +113,16 @@ export function tubeMesh(pts: Vec3[], radius: number, sides = 8, sub = 4): RestM
     const out = [];
     for (let s = 1; s <= capSteps; s++) {
       const a = ((Math.PI / 2) * s) / (capSteps + 0.001);
-      out.push({ c: add(base.c, scale(t, radius * Math.sin(a))), r: Math.max(1e-3, radius * Math.cos(a)), u: base.u, v: base.v });
+      out.push({ c: add(base.c, scale(t, radius * Math.sin(a))), r: Math.max(1e-3, radius * Math.cos(a)), u: base.u, v: base.v, s: base.s });
     }
     return out;
   };
   const all = [...capRings(0).reverse(), ...rings, ...capRings(1)];
-  const pos: number[] = [], idx: number[] = [];
+  const pos: number[] = [], idx: number[] = [], along: number[] = [];
   for (const ring of all) for (let j = 0; j <= sides; j++) {
     const a = (2 * Math.PI * j) / sides;
     pos.push(...add(ring.c, add(scale(ring.u, ring.r * Math.cos(a)), scale(ring.v, ring.r * Math.sin(a)))));
+    along.push(ring.s);
   }
   for (let i = 0; i + 1 < all.length; i++) for (let j = 0; j < sides; j++) {
     const a = i * (sides + 1) + j, b = a + sides + 1;
@@ -125,38 +133,54 @@ export function tubeMesh(pts: Vec3[], radius: number, sides = 8, sub = 4): RestM
   const tip1 = pos.length / 3; pos.push(...add(all[all.length - 1].c, scale(tangents[tangents.length - 1], radius * 0.02)));
   const last = (all.length - 1) * (sides + 1);
   for (let j = 0; j < sides; j++) { idx.push(tip0, j + 1, j); idx.push(tip1, last + j, last + j + 1); }
-  return finish(pos, idx);
+  along.push(0, travelled);
+  // the distance along the tube, as the fraction of the vertex coordinate
+  return { ...finish(pos, idx), coord: Float32Array.from(along, (x) => Math.min(0.999, x / COORD_SPAN)) };
 }
 
-/** Every organelle as a rest-space mesh (bud scars are painted on the skin instead). */
+/**
+ * Every organelle as a rest-space mesh (scars are painted on the skin instead). Each vertex
+ * carries a coordinate: which organelle of its material it is, COORD_MOVING if it moves, and
+ * for tubes the distance along them.
+ */
 export function organelleTemplates(an: Anatomy): OrganelleTemplate[] {
   const out: OrganelleTemplate[] = [];
+  const seen = new Map<Material, number>();
+  const push = (material: Material, mesh: RestMesh, moving = false) => {
+    const id = seen.get(material) ?? 0;
+    seen.set(material, id + 1);
+    const base = (id % COORD_MOVING) + (moving ? COORD_MOVING : 0), n = mesh.pos.length / 3;
+    const coord = new Float32Array(n);
+    for (let v = 0; v < n; v++) coord[v] = base + (mesh.coord ? mesh.coord[v] : 0);
+    out.push({ material, mesh: { ...mesh, coord } });
+  };
   for (const o of an.organelles) {
     const small = Math.max(...o.b) < 0.45;
-    if (o.kind === Prim.Ellipsoid) out.push({ material: o.material, mesh: ellipsoidMesh(o.a, o.b, small ? 18 : 30, small ? 10 : 20) });
-    else if (o.kind === Prim.Torus && o.material !== Mat.BudScar) out.push({ material: o.material, mesh: torusMesh(o.a, o.b, o.R, o.r) });
+    if (o.kind === Prim.Ellipsoid) push(o.material, ellipsoidMesh(o.a, o.b, small ? 18 : 30, small ? 10 : 20));
+    else if (o.kind === Prim.Torus && o.material !== Mat.BudScar) push(o.material, torusMesh(o.a, o.b, o.R, o.r));
     else if (o.kind === Prim.Disc) {
       const ht = Math.hypot(...o.b) || 1e-6;
-      out.push({ material: o.material, mesh: discMesh(o.a, [o.b[0] / ht, o.b[1] / ht, o.b[2] / ht], ht, o.R, o.r) });
+      push(o.material, discMesh(o.a, [o.b[0] / ht, o.b[1] / ht, o.b[2] / ht], ht, o.R, o.r, o.R < 0.4 ? 20 : 48));
     }
     // capsules belong to tubules, meshed below; scar tori are painted on the skin
   }
-  for (const t of an.tubules) out.push({ material: t.material, mesh: tubeMesh(t.points, t.radius, t.radius < 0.09 ? 6 : 8) });
+  for (const t of an.tubules) push(t.material, tubeMesh(t.points, t.radius, t.radius < 0.09 ? 6 : 8, t.motion ? 8 : 4), !!t.motion);
   return out;
 }
 
 /** Concatenates meshes of the same material into one. */
 export function mergeMeshes(meshes: RestMesh[]): RestMesh {
   const nPos = meshes.reduce((a, m) => a + m.pos.length, 0), nIdx = meshes.reduce((a, m) => a + m.idx.length, 0);
-  const pos = new Float32Array(nPos), idx = new Uint32Array(nIdx), cut = new Uint8Array(nPos / 3);
+  const pos = new Float32Array(nPos), idx = new Uint32Array(nIdx), cut = new Uint8Array(nPos / 3), coord = new Float32Array(nPos / 3);
   let po = 0, io = 0;
   for (const m of meshes) {
     pos.set(m.pos, po);
+    if (m.coord) coord.set(m.coord, po / 3);
     for (let i = 0; i < m.idx.length; i++) idx[io + i] = m.idx[i] + po / 3;
     cut.set(m.isCutFace, po / 3);
     po += m.pos.length; io += m.idx.length;
   }
-  return { pos, idx, isCutFace: cut };
+  return { pos, idx, isCutFace: cut, coord };
 }
 
 function add(a: Vec3, b: Vec3): Vec3 { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }

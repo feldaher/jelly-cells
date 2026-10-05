@@ -90,7 +90,7 @@ function labels(an: Anatomy): Label[] {
       blurb: (rep.nucleoids === 1
         ? `The chromosome: no envelope around it, just DNA compacted a thousandfold. Here it is ${pct(rep.oldRound)} replicated`
         : `One of two nucleoids. Each is ${pct(rep.newRound)} of the way through the next round of replication`)
-        + `, with ${rep.origins} copies of the origin in the cell. Most RNA polymerase is here; most ribosomes are not (Bakshi et al. 2012).` },
+        + `, with ${rep.origins} copies of the origin in the cell. Most RNA polymerase is here; most ribosomes are not (Bakshi et al. 2012). It is never still: 5–10 % of its density shifts along its length and back within 5 seconds (Fisher et al. 2013), shown here in real time.` },
     { id: 'envelope', name: 'Cell envelope', material: Mat.Wall, anchor: [-half / 2, R - WALL / 2, 0], size: '≈ 30 nm in all',
       blurb: 'Three layers: an inner membrane, a thin peptidoglycan wall in the periplasm, and an outer membrane. The wall is one bag-shaped molecule; the cell lengthens by inserting new strands along its cylinder.' },
     { id: 'ribosomes', name: 'Ribosome-rich cytoplasm', material: Mat.Cytoplasm, anchor: [half - u(0.22), 0, 0.3], size: '≈ 55 000 ribosomes (moderate growth)',
@@ -102,7 +102,7 @@ function labels(an: Anatomy): Label[] {
   ];
   if (ring) out.push({ id: 'zring', name: 'Z ring', material: Mat.Ring, anchor: [0, 0, ring.R], size: 'a thin band, drawn thicker',
     blurb: st === 3
-      ? 'Shrinking with the septum. FtsZ filaments treadmill around the ring and carry the wall-building enzymes with them, laying down ever smaller rings of wall (Bisson-Filho et al. 2017).'
+      ? 'Shrinking with the septum. FtsZ filaments treadmill around the ring (shown 30× faster) and carry the wall-building enzymes with them, laying down ever smaller rings of wall (Bisson-Filho et al. 2017).'
       : 'FtsZ, a relative of tubulin, in filaments under the membrane. The Min proteins, sweeping from pole to pole, and the nucleoids themselves keep it from forming anywhere but here.' });
   if (st >= 3) out.push({ id: 'septum', name: st === 3 ? 'Constriction' : 'New poles', anchor: [0, 0, 0], size: '',
     blurb: st === 3
@@ -114,7 +114,7 @@ function labels(an: Anatomy): Label[] {
 export const ecoli: CellType = {
   id: 'ecoli',
   name: 'E. coli',
-  title: ['E.', 'coli.'],
+  title: ['E. coli.'],
   tagline: ['No nucleus, no organelles.', 'A chromosome, a ring,', 'and 32 minutes to divide.'],
   umPerUnit: UM,
   build,

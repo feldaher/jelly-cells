@@ -100,7 +100,7 @@ export interface Anatomy {
   /** Organelles in paint priority order: earlier entries win where they overlap. */
   organelles: Primitive[];
   /** Tubular organelles as polylines (their capsules are also in `organelles`). */
-  tubules: { points: Vec3[]; radius: number; material: Material }[];
+  tubules: { points: Vec3[]; radius: number; material: Material; motion?: TubeMotion }[];
   seed: number;
   /**
    * Set on the stage at which the cell has just divided: the rest-space plane through the
@@ -108,6 +108,13 @@ export interface Anatomy {
    */
   fission?: Plane;
 }
+
+/**
+ * How a tubule moves, drawn by the shader: 'instability' = both ends grow out from the middle,
+ * pause and collapse (microtubules); 'transport' = short stretches travel along it (organelles
+ * carried on a track; only the travelling stretches are drawn).
+ */
+export type TubeMotion = 'instability' | 'transport';
 
 export type CellTypeId = 'yeast' | 'pombe' | 'ecoli' | 'rbc' | 'fibroblast' | 'microglia' | 'neuron';
 
@@ -127,8 +134,8 @@ export interface Label {
 export interface CellType {
   id: CellTypeId;
   name: string;
-  /** Two display lines of the title, e.g. ["Budding", "Yeast."]. */
-  title: [string, string];
+  /** The title as it is set: one line, or two when the name has a word to break at, e.g. ["Budding", "Yeast."]. */
+  title: [string] | [string, string];
   tagline: string[];
   /** How many µm one sim unit stands for. */
   umPerUnit: number;
@@ -214,6 +221,11 @@ export interface SkinMesh {
   material: Material;
   /** Rest-space normals from the SDF; when present, normals follow each tet's deformation exactly. */
   restNormal?: Float32Array;
+  /**
+   * Organelles only. Per vertex: the whole part says which organelle of this material it belongs to
+   * (plus COORD_MOVING when it moves), the fraction how far along a tube it is (see mesh/organelleMesh).
+   */
+  coord?: Float32Array;
   /** Per-vertex value in [0, 1] shown by the deformation view (absent in the anatomy view). */
   scalar?: Float32Array;
 }

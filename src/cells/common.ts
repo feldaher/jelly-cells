@@ -1,6 +1,6 @@
 // Small builders shared by the cell types.
 
-import { Mat, Prim, type Anatomy, type BodyPart, type Material, type Primitive, type Vec3 } from '../contracts';
+import { Mat, Prim, type Anatomy, type BodyPart, type Material, type Primitive, type TubeMotion, type Vec3 } from '../contracts';
 import { bodyBounds } from '../anatomy/sdf';
 
 export const ell = (a: Vec3, b: Vec3, material: Material = Mat.Cytoplasm): Primitive => ({ kind: Prim.Ellipsoid, material, a, b, R: 0, r: 0 });
@@ -21,9 +21,9 @@ export function finish(an: Omit<Anatomy, 'bounds'>): Anatomy {
 }
 
 /** A tubule (mitochondrion, fibre…): its capsules go into `organelles`, its polyline into `tubules`. */
-export function addTubule(an: Pick<Anatomy, 'organelles' | 'tubules'>, points: Vec3[], radius: number, material: Material) {
+export function addTubule(an: Pick<Anatomy, 'organelles' | 'tubules'>, points: Vec3[], radius: number, material: Material, motion?: TubeMotion) {
   if (points.length < 2) return;
-  an.tubules.push({ points, radius, material });
+  an.tubules.push(motion ? { points, radius, material, motion } : { points, radius, material });
   for (let k = 0; k + 1 < points.length; k++) an.organelles.push({ kind: Prim.Capsule, material, a: points[k], b: points[k + 1], R: 0, r: radius });
 }
 

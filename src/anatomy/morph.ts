@@ -171,7 +171,8 @@ function morphTubules(A: Tubule[], B: Tubule[], t: number): Tubule[] {
       const to = pb ?? Array.from({ length: n }, () => centroid(a[i]));
       const radius = lerp(a[i]?.radius ?? 0, b[i]?.radius ?? 0, t);
       if (radius < MIN_SIZE) continue;
-      out.push({ material: m, radius, points: from.map((p, k) => lerpV(p, to[k], t)) });
+      const motion = (t < 0.5 ? a[i] ?? b[i] : b[i] ?? a[i]).motion;
+      out.push({ material: m, radius, points: from.map((p, k) => lerpV(p, to[k], t)), ...(motion ? { motion } : {}) });
     }
   }
   return out;

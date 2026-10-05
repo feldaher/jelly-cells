@@ -119,6 +119,33 @@ stage-resolved source for one that passes rule (a). The red-cell dimensions and 
 chromatolysis rest on sources whose text we could not open (Evans & Fung 1972; Lieberman 1971)
 and are unchanged.
 
+## 2b. How organelles look and move (second pass)
+
+One table, `src/cells/cycle/dynamics.ts`, holds the measured rates and surface quantities. It is
+turned into WGSL constants and prepended to the shaders, so the picture and the tests read the
+same numbers. Motions run in the organelle shader; nothing is re-meshed. Each is sped up by a
+stated factor, given on its label.
+
+| Shown | Value | Speed-up | Source |
+|---|---|---|---|
+| Fission yeast microtubule ends | grow 1.86 µm/min, pause 1.5 min at the tip, shrink 9 µm/min | 60× | Tran et al. 2001 |
+| E. coli nucleoid | 5–10 % of its density shifts along it within 5 s; lobed surface | 1× | Fisher et al. 2013 |
+| FtsZ clusters travelling around the Z ring | ≈ 30 nm/s (not read in a source) | 30× | Bisson-Filho et al. 2017 for the motion |
+| Mitochondria moving along the axon, both ways, among stationary ones | ≈ 0.5 µm/s (not read in a source) | 4× | Morris & Hollenbeck 1993 for the behaviour |
+| Nuclear pores on yeast nuclei | 65–182 per nucleus, irregular | — | Winey et al. 1997 (budding yeast; applied to fission yeast too) |
+| Budding yeast mitochondrial tubule | 339 ± 5 nm across | — | Egner et al. 2002 |
+| Golgi | a ribbon of stacks of seven cisternae (drawn 1.6× too wide) | — | Ladinsky et al. 1999 |
+| Nissl body | a stack of rough-ER cisternae (three drawn) | — | textbook |
+| Chromatin texture of animal nuclei; cristae stripes on mitochondria | drawing | — | none |
+
+To carry this, every organelle vertex has a coordinate (`SkinMesh.coord`): which organelle of
+its material it is, whether it moves, and how far along a tube it lies. A tubule may declare a
+`motion`: `'instability'` (ends grow, pause, collapse) or `'transport'` (short stretches travel
+along it). The red blood cell has no organelles and is unchanged.
+
+Titles: a name is set on one line; on two only where it has two words to break at. No word is
+hyphenated across lines.
+
 ## 3. Contract changes (`src/contracts.ts`)
 
 - `Mat`: + `Nucleoid: 12, Spindle: 13, Ring: 14, Septum: 15, Golgi: 16, Receptor: 17`; `MATERIAL_COUNT = 18`.

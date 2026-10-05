@@ -8,6 +8,8 @@ import { MATERIAL_SLOTS, type Anatomy, type Piece, type SkinMesh, type Vec3, typ
 import { packAnatomyGPU } from '../anatomy/sdf';
 import { lookAt, mul, ortho, perspective, type M4 } from '../math/mat4';
 import { packPalette, type Variety } from './palette';
+import { CELL_TYPES } from '../cells';
+import { dynamicsWgsl } from '../cells/cycle/dynamics';
 import commonWgsl from './shaders/common.wgsl?raw';
 import shadowWgsl from './shaders/shadowmaps.wgsl?raw';
 import depthWgsl from './shaders/depth.wgsl?raw';
@@ -147,7 +149,7 @@ export class Renderer {
     const d = device;
     const U = GPUBufferUsage;
     this.frameBuf = d.createBuffer({ size: FRAME_FLOATS * 4, usage: U.UNIFORM | U.COPY_DST });
-    this.cellBuf = d.createBuffer({ size: 16, usage: U.UNIFORM | U.COPY_DST });
+    this.cellBuf = d.createBuffer({ size: 32, usage: U.UNIFORM | U.COPY_DST });
     this.camLight = d.createBuffer({ size: 64, usage: U.UNIFORM | U.COPY_DST });
     this.camFloor = d.createBuffer({ size: 64, usage: U.UNIFORM | U.COPY_DST });
     this.camMain = d.createBuffer({ size: 64, usage: U.UNIFORM | U.COPY_DST });
@@ -180,7 +182,7 @@ export class Renderer {
     ] });
 
     const mod = (code: string) => d.createShaderModule({ code });
-    const common = commonWgsl + '\n' + shadowWgsl + '\n';
+    const common = dynamicsWgsl() + commonWgsl + '\n' + shadowWgsl + '\n';
     const skinBuffers: GPUVertexBufferLayout[] = [
       { arrayStride: 28, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }, { shaderLocation: 3, offset: 24, format: 'float32' }] },
       { arrayStride: 16, attributes: [{ shaderLocation: 2, offset: 0, format: 'float32x4' }] },
@@ -266,7 +268,11 @@ export class Renderer {
   }
 
   setAnatomy(an: Anatomy) {
-    this.device.queue.writeBuffer(this.cellBuf, 0, new Float32Array([an.wallThickness, an.body.length, 0, 0]));
+    // how far a dynamic microtubule can reach from the middle of its bundle (sim units)
+    let reach = 0;
+    for (const t of an.tubules) if (t.motion === 'instability') for (const p of t.points) reach = Math.max(reach, Math.abs(p[0]));
+    const type = CELL_TYPES.findIndex((c) => c.id === an.cellType);
+    this.device.queue.writeBuffer(this.cellBuf, 0, new Float32Array([an.wallThickness, an.body.length, CELL_TYPES[type].umPerUnit, type, reach, 0, 0, 0]));
     const prims = packAnatomyGPU(an);
     this.primBuf?.destroy();
     this.primBuf = this.device.createBuffer({ size: prims.byteLength, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
@@ -323,7 +329,8 @@ export class Renderer {
 
   private uploadMesh(m: GpuMesh) {
     const { pos, normal } = m.src, s = m.scratch;
-    const scalar = 'scalar' in m.src ? m.src.scalar : undefined;
+    // the same slot carries the deformation scalar of the cell skin and the coordinate of an organelle
+    const scalar = 'tetId' in m.src ? m.src.scalar ?? m.src.coord : undefined;
     for (let v = 0, n = pos.length / 3; v < n; v++) {
       s[7 * v] = pos[3 * v]; s[7 * v + 1] = pos[3 * v + 1]; s[7 * v + 2] = pos[3 * v + 2];
       s[7 * v + 3] = normal[3 * v]; s[7 * v + 4] = normal[3 * v + 1]; s[7 * v + 5] = normal[3 * v + 2];

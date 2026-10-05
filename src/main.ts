@@ -134,7 +134,9 @@ function updateStats(world: World) {
 function showType(world: World) {
   const t = world.type;
   $('title1').textContent = t.title[0];
-  $('title2').textContent = t.title[1];
+  // a one-word name is set on one line; the second line is there only when the name has two parts
+  $('title2').textContent = t.title[1] ?? '';
+  $('title2').hidden = t.title.length < 2;
   $('tagline').innerHTML = t.tagline.join('<br />');
   $('about').textContent = t.about;
   $('help').innerHTML = help(world)[tool];

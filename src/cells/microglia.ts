@@ -118,7 +118,7 @@ function labels(an: Anatomy): Label[] {
 export const microglia: CellType = {
   id: 'microglia',
   name: 'Microglia',
-  title: ['Micro-', 'glia.'],
+  title: ['Microglia.'],
   tagline: ['The brain\'s sentinel.', 'Always reaching,', 'always tasting.'],
   umPerUnit: 1.5,
   build,

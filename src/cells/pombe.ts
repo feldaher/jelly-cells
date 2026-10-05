@@ -129,7 +129,8 @@ function build(seed = 7, stage = 2): Anatomy {
       const th = Math.PI / 2 + (i * 2 * Math.PI) / POMBE.mtBundles;
       const at = (x: number, rho: number): Vec3 => [x, rho * Math.cos(th), rho * Math.sin(th)];
       const tip = half - 0.45, mid = rn + 0.1;
-      addTubule(mt, [at(-tip, 0.2), at(-tip / 2, 0.7 * mid), at(0, mid), at(tip / 2, 0.7 * mid), at(tip, 0.2)], 0.045, Mat.Spindle);
+      // drawn dynamic: each end grows to the tip, pauses and collapses (cycle/dynamics.ts)
+      addTubule(mt, [at(-tip, 0.2), at(-tip / 2, 0.7 * mid), at(0, mid), at(tip / 2, 0.7 * mid), at(tip, 0.2)], 0.045, Mat.Spindle, 'instability');
     }
   }
 
@@ -202,8 +203,8 @@ function labels(an: Anatomy): Label[] {
   if (st <= 2) {
     const b = spindles[0].points;
     out.push(
-      { id: 'mt', name: 'Microtubule bundle', material: Mat.Spindle, anchor: lerp3(b[3], b[4], 0.5), size: '25 nm filaments, drawn thicker',
-        blurb: 'Three or four bundles run the length of the cell, with their growing ends toward the tips. Each time one pushes on a tip it pushes the nucleus back: the balance keeps the nucleus in the middle (Tran et al. 2001).' },
+      { id: 'mt', name: 'Microtubule bundle', material: Mat.Spindle, anchor: lerp3(b[1], b[2], 0.6), size: '25 nm filaments, drawn thicker; shown 60× faster',
+        blurb: 'Three or four bundles run the length of the cell, growing ends toward the tips. Each end grows at about 1.9 µm a minute, pushes on the tip for a minute and a half, then collapses back to the nucleus and starts again. Each push shoves the nucleus back: the balance keeps it in the middle (Tran et al. 2001).' },
       { id: 'old-end', name: 'Old end', anchor: [-half + 0.5, 0, 0.3], size: '',
         blurb: 'The tip inherited from the mother. It grows from birth.' },
       { id: 'new-end', name: 'New end', anchor: [half - 0.5, 0, 0.3], size: '',

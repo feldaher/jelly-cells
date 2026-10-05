@@ -198,7 +198,9 @@ export function buildYeast(seed = 7, stage = 2): Anatomy {
   // Mitochondrial network hugging the cortex of mother and bud.
   const mkTubules = (e: Ellipsoid, count: number, segs: number, avoid: (u: Vec3) => boolean) => {
     for (let i = 0; i < count; i++) {
-      const radius = 0.12 + rand() * 0.04;
+      // 339 ± 5 nm across in glucose-grown cells (Egner et al. 2002, PNAS 99:3370)
+      rand();
+      const radius = 0.17;
       const pts = tubule(e, rand, avoid, segs + Math.floor(rand() * 3), 0.55, 0.36);
       addTubule(net, pts, radius, Mat.Mitochondrion);
     }
@@ -246,13 +248,13 @@ function yeastLabels(an: Anatomy): Label[] {
   };
   const labels: Label[] = [
     { id: 'nucleus', name: 'Nucleus', material: Mat.Nucleus, anchor: awayFrom(nucleus, nucleolus), size: '≈ 2 µm across',
-      blurb: 'Holds the 16 chromosomes. In budding yeast the nuclear envelope never breaks down: the nucleus squeezes through the neck and divides between mother and bud.' },
+      blurb: 'Holds the 16 chromosomes. In budding yeast the nuclear envelope never breaks down: the nucleus squeezes through the neck and divides between mother and bud. The dots are nuclear pores: 65 to 182 per nucleus, more as the cycle goes on, with no regular spacing (Winey et al. 1997).' },
     { id: 'nucleolus', name: 'Nucleolus', material: Mat.Nucleolus, anchor: nucleolus.a, size: '≈ 0.8 µm',
       blurb: 'A crescent against the nuclear envelope where ribosomal RNA is made and ribosomes are assembled. In interphase it lies opposite the spindle pole body (Yang et al. 1989); in anaphase it is the last part of the nucleus to divide.' },
     { id: 'vacuole', name: 'Vacuole', material: Mat.Vacuole, anchor: vacuole.a, size: 'up to ≈ 2.5 µm',
       blurb: 'The yeast lysosome: stores amino acids and ions, degrades proteins, and buffers the cell against osmotic stress by swelling or fragmenting.' },
-    { id: 'mito', name: 'Mitochondria', material: Mat.Mitochondrion, anchor: lerpV(mito[0], mito[1], 0.5), size: '≈ 0.3 µm thick',
-      blurb: 'A branched tubular network just under the cortex. It is actively pulled into the bud so the daughter inherits its share.' },
+    { id: 'mito', name: 'Mitochondria', material: Mat.Mitochondrion, anchor: lerpV(mito[0], mito[1], 0.5), size: '0.34 µm thick',
+      blurb: 'A branched tubular network just under the cortex, 339 ± 5 nm thick in cells grown on glucose (Egner et al. 2002). Tubules fuse and divide all the time. The network is pulled into the bud so the daughter inherits her share. The stripes stand for cristae, drawn much further apart than they are.' },
     { id: 'wall', name: 'Cell wall', material: Mat.Wall, anchor: [MOTHER.centre[0], MOTHER.centre[1] + MOTHER.radii[1] - 0.08, MOTHER.centre[2]], size: '≈ 0.1–0.2 µm thick',
       blurb: 'Glucans, mannoproteins and chitin. Far stiffer than the cytoplasm: it resists the cell\'s turgor pressure of several atmospheres.' },
     { id: 'scar', name: 'Bud scar', anchor: inward(scar.a, scar.b, 0.1), size: '≈ 1 µm ring',

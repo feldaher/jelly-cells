@@ -16,7 +16,8 @@ struct Frame {
 // palette: 0 absorb | 1 scatter (w density) | 2 background | 3 membrane (w strength)
 //          4 (refraction, emissive, gloss, view: 0 anatomy 1 deformation) | 5 ink.   mats[m] = colour of material m.
 
-struct Cell { k: vec4f };                          // k = wall thickness, body part count
+// k = wall thickness, body part count, µm per unit, cell type (its place in the dropdown); m.x = reach of a dynamic microtubule
+struct Cell { k: vec4f, m: vec4f };
 struct Prim { h: vec4f, a: vec4f, b: vec4f };      // h = kind, material, R, r; a.w = op; b.w = blend
 struct PieceU { planes: array<vec4f, 8>, info: vec4f };  // info.x = plane count
 

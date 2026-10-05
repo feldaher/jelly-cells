@@ -10,6 +10,8 @@ export interface RestMesh {
   idx: Uint32Array;
   isCutFace: Uint8Array;
   normal?: Float32Array;
+  /** Organelle coordinate per vertex (see SkinMesh.coord). */
+  coord?: Float32Array;
 }
 
 /**
@@ -242,6 +244,7 @@ export function embedMesh(grid: TetGrid, mesh: RestMesh, material: Material, tol
   if (idx.length === 0) return null;
   const restPos = new Float32Array(n * 3), tetId = new Uint32Array(n), bary = new Float32Array(n * 4), isCutFace = new Uint8Array(n);
   const restNormal = mesh.normal ? new Float32Array(n * 3) : undefined;
+  const coord = mesh.coord ? new Float32Array(n) : undefined;
   for (let v = 0; v < keepV.length; v++) {
     const o = keepV[v];
     if (o < 0) continue;
@@ -250,8 +253,9 @@ export function embedMesh(grid: TetGrid, mesh: RestMesh, material: Material, tol
     bary.set(e.bary.subarray(4 * v, 4 * v + 4), 4 * o);
     isCutFace[o] = mesh.isCutFace[v];
     if (restNormal) restNormal.set(mesh.normal!.subarray(3 * v, 3 * v + 3), 3 * o);
+    if (coord) coord[o] = mesh.coord![v];
   }
-  return { restPos, pos: restPos.slice(), normal: new Float32Array(n * 3), idx: Uint32Array.from(idx), tetId, bary, isCutFace, material, restNormal };
+  return { restPos, pos: restPos.slice(), normal: new Float32Array(n * 3), idx: Uint32Array.from(idx), tetId, bary, isCutFace, material, restNormal, ...(coord ? { coord } : {}) };
 }
 
 /** Moves skin vertices with their tets and recomputes smooth normals. */

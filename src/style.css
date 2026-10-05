@@ -33,7 +33,8 @@ body {
 .title { position: fixed; top: 44px; left: 56px; pointer-events: none; }
 .eyebrow { margin: 0 0 14px; font: 500 11px/1 var(--sans); letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
 h1 { margin: 0; font: italic 400 clamp(56px, 7.2vw, 104px)/0.88 var(--serif); letter-spacing: -0.02em; }
-h1 span { display: block; }
+h1 span { display: block; white-space: nowrap; }
+h1 span[hidden] { display: none; }
 h1 .indent { padding-left: 0.48em; }
 .tagline { margin: 18px 0 0; font: 400 20px/1.45 var(--serif); color: var(--muted); }
 

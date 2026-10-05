@@ -2,7 +2,7 @@
 // an axon leaving from the hillock, and branching dendrites. The axon is cut
 // short: a real one can be a metre long.
 
-import { Mat, type Anatomy, type BodyPart, type CellType, type Label, type Stage, type Vec3 } from '../contracts';
+import { Mat, Prim, type Anatomy, type BodyPart, type CellType, type Label, type Stage, type Vec3 } from '../contracts';
 import { rng } from '../math/mat3';
 import { cellSdf, primSdf } from '../anatomy/sdf';
 import { addTubule, cone, ell, finish, lerp3, norm3, samplePoint, union, wander } from './common';
@@ -81,11 +81,19 @@ function build(seed = 7, stage = 0): Anatomy {
         o.filter((x) => x.material === Mat.ER).every((x) => Math.hypot(x.a[0] - q[0], x.a[1] - q[1], x.a[2] - q[2]) > 0.75);
     });
     if (!p) break;
-    const k = plan.nisslSize;
-    o.push(ell(p, [(0.34 + rand() * 0.1) * k, 0.12, (0.26 + rand() * 0.1) * k], Mat.ER));
+    // a Nissl body is a stack of rough ER cisternae: three are drawn, the middle one first
+    const k = plan.nisslSize, R = ((0.34 + rand() * 0.1 + 0.26 + rand() * 0.1) / 2) * k;
+    for (const dy of [0, -0.075, 0.075]) o.push({ kind: Prim.Disc, material: Mat.ER, a: [p[0], p[1] + dy, p[2]], b: [0, 0.02, 0], R, r: 0 });
     placed++;
   }
-  // Mitochondria: strung along the axon, or piled up in the retraction bulb / growth cone.
+  // Mitochondria on the move: one track out and one back along the axon, as far as it goes.
+  // Only short stretches of each track are drawn, travelling (cycle/dynamics.ts).
+  const axonEnd = plan.axon === 'intact' ? AXON2.b : plan.axon === 'sprout' ? GROWTH.b : lerp3(AXON1.a, STUMP, 0.92);
+  for (const dz of [0.2, -0.2]) {
+    const via: Vec3[] = plan.axon === 'intact' ? [AXON1.a, AXON1.b, axonEnd] : plan.axon === 'sprout' ? [AXON1.a, STUMP, axonEnd] : [AXON1.a, axonEnd];
+    addTubule(an, via.map((q) => [q[0], q[1], q[2] + dz] as Vec3), 0.09, Mat.Mitochondrion, 'transport');
+  }
+  // Mitochondria at rest: strung along the axon, or piled up in the retraction bulb / growth cone.
   if (plan.axon === 'intact') {
     for (const t of [0.15, 0.5, 0.82]) addTubule(an, [lerp3(AXON1.a, AXON2.b, t), lerp3(AXON1.a, AXON2.b, t + 0.07)], 0.1, Mat.Mitochondrion);
   } else {
@@ -106,7 +114,7 @@ function labels(an: Anatomy): Label[] {
   const nissl = an.organelles.find((x) => x.material === Mat.ER)!;
   const nuc = an.organelles.find((x) => x.material === Mat.Nucleus)!;
   const nucleolus = an.organelles.find((x) => x.material === Mat.Nucleolus)!;
-  const mito = an.tubules[0].points;
+  const mito = an.tubules.find((t) => !t.motion)!.points;
   const away = norm3([nuc.a[0] - nucleolus.a[0], nuc.a[1] - nucleolus.a[1], nuc.a[2] - nucleolus.a[2]]);
   const labels: Label[] = [
     { id: 'nucleus', name: 'Nucleus', material: Mat.Nucleus, anchor: [nuc.a[0] + away[0] * 0.45, nuc.a[1] + away[1] * 0.45, nuc.a[2] + away[2] * 0.45], size: '≈ 10 µm',
@@ -116,13 +124,14 @@ function labels(an: Anatomy): Label[] {
     { id: 'nucleolus', name: 'Nucleolus', material: Mat.Nucleolus, anchor: nucleolus.a, size: '≈ 2 µm',
       blurb: 'Unusually prominent in neurons (the "owl\'s eye" look), because of their huge demand for ribosomes. It grows further during regeneration.' },
     { id: 'nissl', name: 'Nissl body', material: Mat.ER, anchor: nissl.a, size: '≈ 1 µm stacks',
-      blurb: 'Stacks of rough ER studded with ribosomes, stained blue by Nissl dyes. They dissolve after axonal injury (chromatolysis) as the cell switches to repair.' },
+      blurb: 'Stacks of flat rough-ER cisternae studded with ribosomes, stained blue by Nissl dyes. They dissolve after axonal injury (chromatolysis) as the cell switches to repair.' },
     { id: 'hillock', name: 'Axon hillock', anchor: lerp3(HILLOCK.a, HILLOCK.b, 0.55), size: '',
       blurb: 'Where the axon leaves the soma. It has no Nissl bodies, and next to it sits the initial segment where action potentials fire.' },
     { id: 'dendrite', name: 'Dendrite', anchor: lerp3(APICAL.a, APICAL.b, 0.45), size: '≈ 1–3 µm thick',
       blurb: 'Branches that receive synaptic input. Their tree can hold thousands of synapses.' },
     { id: 'mito', name: 'Mitochondria', material: Mat.Mitochondrion, anchor: lerp3(mito[0], mito[1], 0.5), size: '≈ 0.3 µm thick',
-      blurb: an.stage === 0 ? 'Carried along the axon to where energy is needed, at synapses and nodes.' : 'Still being shipped down the axon, they pile up at its sealed end.' },
+      blurb: (an.stage === 0 ? 'Carried along the axon to where energy is needed, at synapses and nodes.' : 'Still being shipped down the axon, they pile up at its sealed end.')
+        + ' Some sit still while others travel, outward and back, switching between the two states (Morris & Hollenbeck 1993). The moving ones are shown 4× faster than life.' },
   ];
   if (an.stage === 0) {
     labels.push(
@@ -143,7 +152,7 @@ function labels(an: Anatomy): Label[] {
 export const neuron: CellType = {
   id: 'neuron',
   name: 'Neuron',
-  title: ['Neu-', 'ron.'],
+  title: ['Neuron.'],
   tagline: ['A soma, an axon,', 'a crown of dendrites.', 'Pull it by the axon.'],
   umPerUnit: 2,
   build,
