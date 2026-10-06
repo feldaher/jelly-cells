@@ -74,7 +74,7 @@ function labels(an: Anatomy): Label[] {
   const centre: Vec3 = an.stage >= 2 ? [b.a[0], b.a[1], b.a[2]] : [0, Y, 0];
   const labels: Label[] = [
     { id: 'membrane', name: 'Membrane skeleton', material: Mat.Wall, anchor: under(an.stage >= 2 ? 0.8 : RIM_R, 0), size: '≈ 0.1 µm thick',
-      blurb: 'A triangular net of spectrin tethered to the membrane. It lets the cell fold through 3 µm capillaries and spring back, about a million times in its 120-day life.' },
+      blurb: 'A triangular net of spectrin tethered to the membrane. It lets the cell fold through 3 µm capillaries and spring back. At about one circuit of the body a minute, that is some 170 000 circuits in its 120-day life, each through two capillary beds (lungs and tissues).' },
     { id: 'hb', name: 'Haemoglobin', material: Mat.Cytoplasm, anchor: an.stage >= 2 ? [centre[0] - 0.6, centre[1], centre[2] + 0.3] : [-RIM_R, Y, 0.3], size: '≈ 270 million per cell',
       blurb: 'The cytoplasm is a concentrated haemoglobin solution (about a third of the cell by mass) carrying oxygen from lungs to tissues.' },
   ];

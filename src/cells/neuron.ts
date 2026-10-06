@@ -4,8 +4,8 @@
 
 import { Mat, Prim, type Anatomy, type BodyPart, type CellType, type Label, type Stage, type Vec3 } from '../contracts';
 import { rng } from '../math/mat3';
-import { cellSdf, primSdf } from '../anatomy/sdf';
-import { addTubule, cone, ell, finish, lerp3, norm3, samplePoint, union, wander } from './common';
+import { cellSdf, materialAt, primSdf } from '../anatomy/sdf';
+import { addTubule, anchorIn, bowl, bowlMid, cone, ell, finish, golgiRibbon, lerp3, norm3, samplePoint, union, wander } from './common';
 
 const SOMA: Vec3 = [0, 1.7, 0];
 const SOMA_R: Vec3 = [2.0, 1.6, 1.9];
@@ -23,6 +23,8 @@ export const STAGES: Stage[] = [
 
 /** Where the axon is cut: part-way along its first segment. */
 const STUMP: Vec3 = lerp3(AXON1.a, AXON1.b, 0.7);
+/** How far along the main dendrite the Golgi outpost sits. */
+const OUTPOST_AT = 0.3;
 const GROWTH = { a: STUMP, b: [8.2, 0.5, 0.6] as Vec3 };
 
 const PLAN = [
@@ -107,6 +109,20 @@ function build(seed = 7, stage = 0): Anatomy {
     const start = samplePoint(rand, [somaC[0] - 1.6, somaC[1] - 1.2, -1.5], [somaC[0] + 1.6, somaC[1] + 1.2, 1.5], ok);
     if (start) addTubule(an, wander(rand, start, norm3([rand() - 0.5, 0, rand() - 0.5]), 4, 0.42, ok), 0.1, Mat.Mitochondrion);
   }
+
+  // Golgi: in a neuron the ribbon wraps part of the nucleus, on the side of the main dendrite.
+  // Seven curved cisternae per stack, about 1 µm wide, drawn twice as far apart as they are.
+  const toDendrite = norm3([APICAL.a[0] - nc[0], 0, APICAL.a[2] - nc[2]]);
+  o.push(...golgiRibbon(nc, toDendrite, [0, 1, 0], { inner: 0.95 + 0.13, spacing: 0.045, halfThickness: 0.0125, width: 0.55, stacks: 5 }));
+  // A Golgi outpost: a small stack out in the dendrite, where part of the secretory traffic is
+  // handled locally (Horton & Ehlers 2003, J Neurosci 23:6188).
+  const post = lerp3(APICAL.a, APICAL.b, OUTPOST_AT);
+  for (let i = 0; i < 3; i++) o.push(bowl([post[0], post[1] - 0.6, post[2]], [0, 1, 0], 0.6 + (i - 1) * 0.045, 0.3, 0.0125, Mat.Golgi));
+  // Microtubules: bundles running the length of the axon and of the dendrite (25 nm tubes, drawn
+  // 0.1 µm thick). They are the tracks along which the mitochondria above travel.
+  const axonPath: Vec3[] = plan.axon === 'intact' ? [HILLOCK.a, AXON1.a, AXON1.b, axonEnd] : plan.axon === 'sprout' ? [HILLOCK.a, AXON1.a, STUMP, axonEnd] : [HILLOCK.a, AXON1.a, axonEnd];
+  addTubule(an, axonPath.map((q) => [q[0], q[1] + 0.1, q[2]] as Vec3), 0.025, Mat.Spindle);
+  addTubule(an, [0.05, 0.35, 0.65, 0.92].map((t) => { const q = lerp3(APICAL.a, APICAL.b, t); return [q[0], q[1] + 0.06, q[2] + 0.08] as Vec3; }), 0.025, Mat.Spindle);
   return an;
 }
 
@@ -146,6 +162,16 @@ function labels(an: Anatomy): Label[] {
   }
   if (an.stage === 3) labels.push({ id: 'cone', name: 'Growth cone', anchor: [GROWTH.b[0] + 0.35, GROWTH.b[1] - 0.05, GROWTH.b[2]], size: '≈ 5–10 µm',
     blurb: 'The motile tip of the regrowing axon: actin-rich lamellipodia and filopodia that read guidance cues and pull the axon forward.' });
+  const cisternae = an.organelles.filter((x) => x.material === Mat.Golgi), post = lerp3(APICAL.a, APICAL.b, OUTPOST_AT);
+  const isOutpost = (x: (typeof cisternae)[number]) => Math.hypot(bowlMid(x)[0] - post[0], bowlMid(x)[1] - post[1], bowlMid(x)[2] - post[2]) < 0.2;
+  const ribbon = cisternae.filter((x) => !isOutpost(x)), outpost = cisternae.filter(isOutpost);
+  if (ribbon.length) labels.push({ id: 'golgi', name: 'Golgi apparatus', material: Mat.Golgi, anchor: anchorIn(an, ribbon.map(bowlMid), Mat.Golgi), size: 'cisternae ≈ 1 µm wide',
+    blurb: 'A ribbon of stacks of curved cisternae wrapped around part of the nucleus, large in a neuron because so much membrane and so many receptors and channels have to be made and shipped down the axon and dendrites.' });
+  if (outpost.length && materialAt(an, ...bowlMid(outpost[1] ?? outpost[0])) === Mat.Golgi) labels.push({ id: 'outpost', name: 'Golgi outpost', material: Mat.Golgi, anchor: bowlMid(outpost[1] ?? outpost[0]), size: '< 1 µm',
+    blurb: 'A small piece of Golgi far from the cell body, in a dendrite. Proteins made in the dendrite can be finished and delivered locally instead of travelling from the soma. Outposts are found in neurons and hardly anywhere else (Horton & Ehlers 2003).' });
+  const tracks = an.tubules.filter((t) => t.material === Mat.Spindle);
+  if (tracks.length) labels.push({ id: 'mt', name: 'Microtubules', material: Mat.Spindle, anchor: anchorIn(an, tracks.flatMap((t) => t.points.slice(1)), Mat.Spindle), size: '25 nm thick, drawn thicker',
+    blurb: 'Bundles of microtubules run the whole length of the axon and the dendrites. They are the rails for everything that is shipped: kinesin motors carry cargo outward along them, dynein brings it back. In the axon they all point the same way, plus end out; in dendrites they are mixed.' });
   return labels;
 }
 
@@ -164,6 +190,7 @@ export const neuron: CellType = {
     { material: Mat.Wall, name: 'Cortex' }, { material: Mat.Cytoplasm, name: 'Cytoplasm' },
     { material: Mat.Nucleus, name: 'Nucleus' }, { material: Mat.Nucleolus, name: 'Nucleolus' },
     { material: Mat.ER, name: 'Nissl bodies' }, { material: Mat.Mitochondrion, name: 'Mitochondria' },
+    { material: Mat.Golgi, name: 'Golgi apparatus' }, { material: Mat.Spindle, name: 'Microtubules' },
   ],
   stiffness: { [Mat.Wall]: 1.5, [Mat.Nucleus]: 2.5, [Mat.Nucleolus]: 2.5, [Mat.ER]: 1.2 },
   camera: { dist: 38, yaw: -0.3, pitch: 0.8 },

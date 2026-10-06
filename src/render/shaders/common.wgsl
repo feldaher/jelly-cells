@@ -68,6 +68,17 @@ fn primSdf(i: u32, p: vec3f) -> f32 {
     let d = vec2f(dx, abs(h) - ht);
     return length(max(d, vec2f(0.0))) + min(max(d.x, d.y), 0.0);
   }
+  if (kind == 5u) {
+    // a curved sheet: the part of a spherical shell within the half-angle of the axis; |b| is the sine of that angle
+    let s = max(min(length(pr.b.xyz), 1.0), 1e-9);
+    let c = sqrt(1.0 - s * s);
+    let q = p - pr.a.xyz;
+    let h = dot(q, pr.b.xyz) / s;
+    let len = length(q);
+    let w = sqrt(max(len * len - h * h, 0.0));
+    if (c * w < s * h) { return abs(len - pr.h.z) - pr.h.w; }
+    return length(vec2f(w - pr.h.z * s, h - pr.h.z * c)) - pr.h.w;
+  }
   let q = p - pr.a.xyz;
   let h = dot(q, pr.b.xyz);
   let radial = length(q - h * pr.b.xyz);

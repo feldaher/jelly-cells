@@ -5,7 +5,7 @@ import { CELL_TYPES, cellType } from '../src/cells';
 import { DYNAMICS, dynamicsWgsl, microtubuleEnd, microtubulePeriod, poreCount } from '../src/cells/cycle/dynamics';
 import { buildPiece } from '../src/mesh/piece';
 import { COORD_MOVING, COORD_SPAN } from '../src/mesh/organelleMesh';
-import { Mat, Prim, type Anatomy } from '../src/contracts';
+import { Mat, Prim, type Anatomy, type CellTypeId, type Primitive } from '../src/contracts';
 import { of, tubulesOf } from './measure';
 
 const feature = await loadFeature('features/dynamics.feature');
@@ -17,7 +17,7 @@ function stacks(an: Anatomy, material: number) {
   return [...g.values()];
 }
 
-describeFeature(feature, ({ Scenario }) => {
+describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
   Scenario('Titles are set the same way for every cell', ({ Given, Then, And }) => {
     Given('every cell type', () => expect(CELL_TYPES.length).toBe(12));
     Then('each title is one or two lines and ends with a full stop', () => {
@@ -122,11 +122,66 @@ describeFeature(feature, ({ Scenario }) => {
     });
   });
 
-  Scenario('The Golgi is a ribbon of stacks of seven cisternae', ({ Given, Then }) => {
+  ScenarioOutline('The Golgi is one ribbon of stacks of seven curved cisternae', ({ Given, Then, And }, v) => {
+    let ct = cellType('fibroblast');
     let ans: Anatomy[] = [];
-    Given('the fibroblast cell at every stage', () => { ans = stages('fibroblast'); });
-    Then('its Golgi is three stacks of seven flat cisternae', () => {
-      for (const a of ans) expect(stacks(a, Mat.Golgi), `stage ${a.stage}`).toEqual([7, 7, 7]);
+    const unit = (b: number[]) => { const l = Math.hypot(b[0], b[1], b[2]); return [b[0] / l, b[1] / l, b[2] / l]; };
+    const cisternae = (a: Anatomy) => of(a, Mat.Golgi, Prim.Bowl);
+    /** Cisternae grouped into stacks: those sharing an axis. */
+    const stackOf = (a: Anatomy) => {
+      const g = new Map<string, Primitive[]>();
+      for (const c of cisternae(a)) { const k = unit(c.b).map((x) => x.toFixed(3)).join(); g.set(k, [...(g.get(k) ?? []), c]); }
+      return [...g.values()];
+    };
+    Given('the <cell> cell at every stage', () => { ct = cellType(v.cell as CellTypeId); ans = (ct.stages ?? [null]).map((_, i) => ct.build(7, i)); });
+    Then('its Golgi cisternae are curved sheets, hollow side toward the centrosome', () => {
+      for (const a of ans) {
+        const mtoc = of(a, Mat.Spindle)[0];
+        expect(cisternae(a).length, `stage ${a.stage}`).toBeGreaterThanOrEqual(28);
+        // every cisterna is part of a sphere centred on the centrosome
+        for (const c of cisternae(a)) expect(Math.hypot(c.a[0] - mtoc.a[0], c.a[1] - mtoc.a[1], c.a[2] - mtoc.a[2]) * ct.umPerUnit).toBeLessThan(0.05);
+      }
+    });
+    And('they form stacks of seven, each about 1 micrometre wide', () => {
+      for (const a of ans) {
+        const st = stackOf(a);
+        expect(st.length, `stage ${a.stage}`).toBeGreaterThanOrEqual(4);
+        for (const stack of st) {
+          expect(stack).toHaveLength(7);
+          expect(new Set(stack.map((c) => c.R.toFixed(4))).size).toBe(7);
+          for (const c of stack) { const w = 2 * c.R * Math.hypot(...c.b) * ct.umPerUnit; expect(w).toBeGreaterThan(0.8); expect(w).toBeLessThan(1.4); }
+        }
+      }
+    });
+    And('neighbouring stacks meet at every level, so the ribbon is one piece', () => {
+      for (const a of ans) {
+        const st = stackOf(a), axes = st.map((s) => unit(s[0].b));
+        // walk the ribbon: each stack must have a neighbour within the angle its narrowest cisterna spans
+        const reached = new Set([0]);
+        for (let grew = true; grew;) {
+          grew = false;
+          for (const i of [...reached]) for (let j = 0; j < st.length; j++) {
+            if (reached.has(j)) continue;
+            const angle = Math.acos(Math.min(1, axes[i][0] * axes[j][0] + axes[i][1] * axes[j][1] + axes[i][2] * axes[j][2]));
+            const span = Math.min(...st[i].map((c) => Math.asin(Math.hypot(...c.b)))) + Math.min(...st[j].map((c) => Math.asin(Math.hypot(...c.b))));
+            if (angle <= span) { reached.add(j); grew = true; }
+          }
+        }
+        expect(reached.size, `stage ${a.stage}`).toBe(st.length);
+      }
+    });
+  });
+
+  Scenario('Rough ER wraps the nucleus of the animal cell in curved sheets', ({ Given, Then }) => {
+    let an: Anatomy;
+    Given('the animal cell', () => { an = cellType('animal').build(); });
+    Then('its rough ER sheets are curved about the centre of the nucleus and lie outside it', () => {
+      const nucleus = of(an, Mat.Nucleus)[0], er = of(an, Mat.ER, Prim.Bowl);
+      expect(er.length).toBeGreaterThanOrEqual(5);
+      for (const e of er) {
+        expect(Math.hypot(e.a[0] - nucleus.a[0], e.a[1] - nucleus.a[1], e.a[2] - nucleus.a[2])).toBeLessThan(1e-6);
+        expect(e.R - e.r).toBeGreaterThan(Math.max(...nucleus.b));
+      }
     });
   });
 

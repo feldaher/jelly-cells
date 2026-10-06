@@ -164,7 +164,7 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
       for (const m of [Mat.Nucleus, Mat.Nucleolus, Mat.ER, Mat.Golgi, Mat.Spindle, Mat.Mitochondrion, Mat.Lysosome, Mat.Peroxisome]) expect(mats(m).length, String(m)).toBeGreaterThanOrEqual(1);
       const n = mats(Mat.Nucleus)[0], nl = mats(Mat.Nucleolus)[0];
       expect(dist(n.a, nl.a) + nl.b[0]).toBeLessThan(n.b[0]);
-      expect(mats(Mat.Golgi).filter((o) => o.kind === Prim.Disc).length).toBeGreaterThanOrEqual(5);
+      expect(mats(Mat.Golgi).filter((o) => o.kind === Prim.Bowl).length).toBeGreaterThanOrEqual(7);
     });
     And('it has no chloroplast and no vacuole', () => { expect(mats(Mat.Chloroplast)).toHaveLength(0); expect(mats(Mat.Vacuole)).toHaveLength(0); });
     And('it is about 20 micrometres across', () => {
@@ -200,7 +200,10 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
         expect(Math.abs((g[0] * c.b[0] + g[1] * c.b[1] + g[2] * c.b[2]) / (gl * ht))).toBeGreaterThan(0.95);
       }
     });
-    And('its central vacuole takes up more than 40 percent of the cell', () => {
+    And('its central vacuole takes up more than half of the cell, with the nucleus pressed flat against the wall', () => {
+      const nuc = mats(Mat.Nucleus)[0];
+      expect(nuc.b[1]).toBeLessThan(0.7 * nuc.b[0]);
+      expect(-cellSdf(an, nuc.a[0], nuc.a[1] + nuc.b[1], nuc.a[2]) * um()).toBeLessThan(1.2);
       const vac = mats(Mat.Vacuole)[0];
       let inCell = 0, inVac = 0, s = 99;
       const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
@@ -209,7 +212,7 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
         const p = [0, 1, 2].map((k) => lo[k] + rnd() * (hi[k] - lo[k]));
         if (cellSdf(an, p[0], p[1], p[2]) < 0) { inCell++; if (primSdf(vac, p[0], p[1], p[2]) < 0) inVac++; }
       }
-      expect(inVac / inCell).toBeGreaterThan(0.4);
+      expect(inVac / inCell).toBeGreaterThan(0.5);
     });
     And('it has a nucleus, mitochondria, peroxisomes, Golgi stacks and rough ER', () => {
       for (const m of [Mat.Nucleus, Mat.Mitochondrion, Mat.Peroxisome, Mat.Golgi, Mat.ER]) expect(mats(m).length, String(m)).toBeGreaterThanOrEqual(1);
@@ -281,15 +284,86 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
       expect(wb.length).toBeGreaterThanOrEqual(2);
       for (const w of wb) expect(dist(w.a, septum.a) * um()).toBeLessThan(0.8);
     });
-    And('the tip compartment holds more than one nucleus', () => {
-      const septum = mats(Mat.Septum)[0];
-      expect(mats(Mat.Nucleus).filter((n) => n.a[0] > septum.a[0]).length).toBeGreaterThan(1);
+    And('the tip compartment holds one nucleus for about every 60 cubic micrometres of cytoplasm', () => {
+      const septum = mats(Mat.Septum)[0], tube = an.body[0].prim, dome = an.body[1].prim;
+      const nuclei = mats(Mat.Nucleus).filter((n) => n.a[0] > septum.a[0]).length;
+      const length = (dome.b[0] + dome.r - septum.a[0]) * um(), radius = tube.R * um();
+      const perNucleus = (Math.PI * radius * radius * length) / nuclei;
+      expect(nuclei).toBeGreaterThan(1);
+      expect(perNucleus).toBeGreaterThan(45); expect(perNucleus).toBeLessThan(80);
     });
     And('a Spitzenkörper sits at the very tip', () => {
-      const spk = mats(Mat.Golgi)[0];
+      const spk = mats(Mat.Vesicle)[0];
       const dome = an.body[1].prim;
       expect(dome.b[0] + dome.r - spk.a[0]).toBeLessThan(1);
       expect(cellSdf(an, spk.a[0] + spk.b[0], 0, 0)).toBeLessThan(-an.wallThickness);
+    });
+    And('its Golgi is single rings, more of them toward the tip but none in the dome, and microtubules run its length', () => {
+      const rings = mats(Mat.Golgi), dome = an.body[1].prim, tipX = dome.b[0] + dome.r, septum = mats(Mat.Septum)[0];
+      expect(rings.length).toBeGreaterThanOrEqual(6);
+      for (const g of rings) { expect(g.kind).toBe(Prim.Torus); expect((tipX - g.a[0]) * um()).toBeGreaterThan(1.3); }
+      const mid = (septum.a[0] + tipX) / 2;
+      expect(rings.filter((g) => g.a[0] > mid).length).toBeGreaterThan(rings.filter((g) => g.a[0] <= mid).length);
+      const mts = an.tubules.filter((x) => x.material === Mat.Spindle);
+      expect(mts.length).toBeGreaterThanOrEqual(3);
+      for (const m of mts) expect((m.points[m.points.length - 1][0] - m.points[0][0]) * um()).toBeGreaterThan(12);
+    });
+  });
+
+  Scenario('Budding yeast has ER against its membrane and a Golgi that is not stacked', ({ Given, When, Then, And }) => {
+    given(Given, 'yeast'); built(When, 'yeast');
+    Then('its ER sheets lie within 0.4 micrometres of the cell wall', () => {
+      const sheets = mats(Mat.ER).filter((o) => o.kind === Prim.Bowl);
+      expect(sheets.length).toBeGreaterThanOrEqual(5);
+      for (const e of sheets) {
+        const l = Math.hypot(...e.b), mid = [0, 1, 2].map((k) => e.a[k] + (e.b[k] / l) * e.R);
+        const depth = -cellSdf(an, mid[0], mid[1], mid[2]) * um();
+        expect(depth).toBeGreaterThan(an.wallThickness * um()); expect(depth).toBeLessThan(an.wallThickness * um() + 0.4);
+      }
+    });
+    And('its Golgi cisternae are single, no two in a stack', () => {
+      const g = mats(Mat.Golgi);
+      expect(g.length).toBeGreaterThanOrEqual(8);
+      for (const c of g) expect(c.kind).toBe(Prim.Disc);
+      for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++) expect(dist(g[i].a, g[j].a) * um()).toBeGreaterThan(0.4);
+    });
+  });
+
+  Scenario("A neuron's Golgi wraps its nucleus and sends an outpost into a dendrite", ({ Given, When, Then, And }) => {
+    given(Given, 'neuron'); built(When, 'neuron');
+    const nearNucleus = (o: (typeof an.organelles)[number]) => dist(o.a, mats(Mat.Nucleus)[0].a) < 1e-6;
+    Then('most of its Golgi cisternae are curved about the nucleus', () => {
+      const g = mats(Mat.Golgi);
+      expect(g.every((o) => o.kind === Prim.Bowl)).toBe(true);
+      expect(g.filter(nearNucleus).length).toBeGreaterThanOrEqual(28);
+    });
+    And('a few sit in the main dendrite, far from the soma', () => {
+      const soma = an.body[0].prim, post = mats(Mat.Golgi).filter((o) => !nearNucleus(o));
+      expect(post.length).toBeGreaterThanOrEqual(2);
+      for (const o of post) {
+        const l = Math.hypot(...o.b), mid = [0, 1, 2].map((k) => o.a[k] + (o.b[k] / l) * o.R);
+        expect(primSdf(soma, mid[0], mid[1], mid[2])).toBeGreaterThan(0);
+        expect(cellSdf(an, mid[0], mid[1], mid[2])).toBeLessThan(0);
+      }
+    });
+    And('microtubules run along the axon', () => {
+      const mts = an.tubules.filter((x) => x.material === Mat.Spindle);
+      expect(mts.length).toBeGreaterThanOrEqual(2);
+      expect(Math.max(...mts.map((m) => m.points[m.points.length - 1][0]))).toBeGreaterThan(6);
+    });
+  });
+
+  ScenarioOutline('Microtubules radiate from the centrosome', ({ Given, When, Then }, v) => {
+    Given('the <type> cell type', () => { ct = cellType(v.type as CellTypeId); });
+    When('its anatomy is built', () => { an = ct.build(); });
+    Then('at least eight microtubules start at the centrosome and none passes through the nucleus', () => {
+      const mtoc = mats(Mat.Spindle).find((o) => o.kind === Prim.Ellipsoid)!, nucleus = mats(Mat.Nucleus)[0];
+      const mts = an.tubules.filter((x) => x.material === Mat.Spindle);
+      expect(mts.length).toBeGreaterThanOrEqual(8);
+      for (const m of mts) {
+        expect(dist(m.points[0], mtoc.a)).toBeLessThan(1e-6);
+        for (const p of m.points) expect(primSdf(nucleus, p[0], p[1], p[2])).toBeGreaterThan(0);
+      }
     });
   });
 });

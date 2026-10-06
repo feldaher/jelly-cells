@@ -104,7 +104,7 @@ Feature: A gallery of cell types
     When its anatomy is built
     Then it is more than twice as long as it is wide
     And it has at least 30 chloroplasts, each 5 micrometres across and lying flat between the vacuole and the wall
-    And its central vacuole takes up more than 40 percent of the cell
+    And its central vacuole takes up more than half of the cell, with the nucleus pressed flat against the wall
     And it has a nucleus, mitochondria, peroxisomes, Golgi stacks and rough ER
 
   Scenario: Bacteriophage T4 has the measured head, tail and fibres
@@ -127,5 +127,29 @@ Feature: A gallery of cell types
     When its anatomy is built
     Then it is 3 micrometres wide and more than five times as long
     And its septum has a central pore with Woronin bodies beside it
-    And the tip compartment holds more than one nucleus
+    And the tip compartment holds one nucleus for about every 60 cubic micrometres of cytoplasm
     And a Spitzenkörper sits at the very tip
+    And its Golgi is single rings, more of them toward the tip but none in the dome, and microtubules run its length
+
+  Scenario: Budding yeast has ER against its membrane and a Golgi that is not stacked
+    Given the yeast cell type
+    When its anatomy is built
+    Then its ER sheets lie within 0.4 micrometres of the cell wall
+    And its Golgi cisternae are single, no two in a stack
+
+  Scenario: A neuron's Golgi wraps its nucleus and sends an outpost into a dendrite
+    Given the neuron cell type
+    When its anatomy is built
+    Then most of its Golgi cisternae are curved about the nucleus
+    And a few sit in the main dendrite, far from the soma
+    And microtubules run along the axon
+
+  Scenario Outline: Microtubules radiate from the centrosome
+    Given the <type> cell type
+    When its anatomy is built
+    Then at least eight microtubules start at the centrosome and none passes through the nucleus
+
+    Examples:
+      | type       |
+      | fibroblast |
+      | animal     |

@@ -95,6 +95,15 @@ const ARTICLES: Record<string, string> = {
   'Envelope': 'Viral envelope',
   'RNA genome': 'SARS-CoV-2',
   'Virion': 'Virus',
+  // ER, Golgi and microtubules
+  'Cortical ER': 'Endoplasmic reticulum',
+  'Endoplasmic reticulum': 'Endoplasmic reticulum',
+  'Smooth ER': 'Endoplasmic reticulum',
+  'Golgi cisterna': 'Golgi apparatus',
+  'Golgi outpost': 'Golgi apparatus',
+  'Golgi equivalent': 'Golgi apparatus',
+  'Microtubule': 'Microtubule',
+  'Microtubules': 'Microtubule',
 };
 
 /** The Wikipedia link for a label name, or undefined if it has none. */

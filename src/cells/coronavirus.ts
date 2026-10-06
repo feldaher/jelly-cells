@@ -15,12 +15,18 @@ const u = (nm: number) => nm / 1000 / UM;
 export const SARS2 = {
   diameter: 100,
   spikes: 24,
-  /** How far a spike stands out from the membrane and how wide its head is: about 20 and 13 nm (not read in a source this session). */
-  spikeLength: 20, spikeHead: 16, spikeStalk: 12,
+  /**
+   * A spike stands about 20–25 nm out of the membrane (Ke et al. look for its centre 14 nm above
+   * it). Drawn as a club 12 nm thick at the stalk and 16 nm at the head; a real stalk is thinner.
+   */
+  spikeLength: 22, spikeHead: 16, spikeStalk: 12,
   /** A lipid bilayer is 4–5 nm thick; drawn 2.5 nm so that the spikes are not all membrane. */
   membraneDrawn: 2.5,
-  /** Beads of RNA and nucleocapsid protein: about 15 nm across, some 30–35 per virion (not read in a source this session). */
-  beadWidth: 14, beads: 30,
+  /**
+   * Beads of RNA and nucleocapsid protein (RNPs): about 15 nm across; 26 ± 11 were counted per
+   * virion and 30–35 estimated (Yao et al. 2020, full text).
+   */
+  beadWidth: 15, beads: 30,
   genomeBases: 30000,
 } as const;
 
@@ -66,12 +72,12 @@ function labels(an: Anatomy): Label[] {
     if (near > best) { best = near; free = [d[0] * (R - an.wallThickness / 2), d[1] * (R - an.wallThickness / 2), d[2] * (R - an.wallThickness / 2)]; }
   }
   return [
-    { id: 'spike', name: 'Spike', material: Mat.ViralProtein, anchor: [(spike.a[0] + spike.b[0]) / 2, (spike.a[1] + spike.b[1]) / 2, (spike.a[2] + spike.b[2]) / 2], size: '≈ 20 nm tall; 24 ± 9 per virion',
-      blurb: 'Three copies of the S protein, coated in sugars. It binds the ACE2 receptor on a human cell and then refolds to fuse the two membranes. A virion carries only 24 ± 9 of them, standing at random and able to tilt on their stalks (Ke et al. 2020). The crown they make gave coronaviruses their name.' },
+    { id: 'spike', name: 'Spike', material: Mat.ViralProtein, anchor: [(spike.a[0] + spike.b[0]) / 2, (spike.a[1] + spike.b[1]) / 2, (spike.a[2] + spike.b[2]) / 2], size: '≈ 20–25 nm tall; 24 ± 9 per virion',
+      blurb: 'Three copies of the S protein, coated in sugars. It binds the ACE2 receptor on a human cell and then refolds to fuse the two membranes. A virion carries only 24 ± 9 of them, about one per 1 000 nm² of membrane, ten times sparser than on influenza virus, standing at random and able to tilt on their stalks (Ke et al. 2020). The crown they make gave coronaviruses their name.' },
     { id: 'envelope', name: 'Envelope', material: Mat.Wall, anchor: free, size: '≈ 100 nm across; bilayer 4–5 nm, drawn thinner',
       blurb: 'A lipid membrane taken from the host cell as the virus buds into its ER–Golgi compartment, packed with the viral M protein. Soap takes it apart, which is why washing hands works. Virions are roughly spherical and vary in size around 100 nm.' },
     { id: 'rna', name: 'RNA genome', material: Mat.Genome, anchor: bead.a, size: '≈ 30 000 bases, in beads ≈ 15 nm across',
-      blurb: 'One strand of RNA, among the longest of any RNA virus, wound with the nucleocapsid protein into beads that fill a space about 80 nm across (Yao et al. 2020). It is read directly as a messenger RNA when it enters a cell.' },
+      blurb: 'One strand of RNA, among the longest of any RNA virus, wound with the nucleocapsid protein into some 30 to 35 beads that fill a space about 80 nm across (Yao et al. 2020). It is read directly as a messenger RNA when it enters a cell.' },
     { id: 'virion', name: 'Virion', anchor: [0, -R * 0.45, R * 0.3], size: '',
       blurb: 'A virus particle outside a cell: genome, protein and here a membrane. It has no ribosomes and no metabolism; everything it does next is done by the cell it enters.' },
   ];
@@ -92,5 +98,5 @@ export const coronavirus: CellType = {
   stiffness: { [Mat.Wall]: 2, [Mat.Genome]: 1.5, [Mat.ViralProtein]: 3 },
   camera: { dist: 26, yaw: -0.42, pitch: 0.6 },
   help: 'Grab a spike and pull, or cut the particle open to see the RNA beads.',
-  about: 'SARS-CoV-2, the virus of COVID-19, drawn at 18 nm per unit: about 100 nm across, a fifth of the width of the bacteriophage\'s host and a two-hundredth of the animal cell here. Size and spike number are from cryo-electron tomography of intact virions (Ke et al. 2020; Yao et al. 2020). The membrane is drawn thinner than it is, the spikes as plain clubs, and the M and E proteins are left out.',
+  about: 'SARS-CoV-2, the virus of COVID-19, drawn at 18 nm per unit: about 100 nm across, a fifth of the width of the bacteriophage\'s host and a two-hundredth of the animal cell here. Size and spike number are from cryo-electron tomography of intact virions (Ke et al. 2020; Yao et al. 2020). The membrane is drawn thinner than it is and the spikes as plain clubs with stalks thicker than the real ones. The M protein, which packs the membrane, and the few copies of E are single molecules too small to draw at this scale.',
 };

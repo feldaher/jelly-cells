@@ -64,6 +64,15 @@ export function primSdf(p: Primitive, x: number, y: number, z: number): number {
       const dx = p.r > 0 ? Math.max(rad - p.R, p.r - rad) : rad - p.R, dy = Math.abs(h) - ht;
       return Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) + Math.min(Math.max(dx, dy), 0);
     }
+    case Prim.Bowl: {
+      // a curved sheet: the part of a spherical shell within the half-angle of the axis; |b| is the sine of that angle
+      const s = Math.min(1, Math.hypot(p.b[0], p.b[1], p.b[2])) || 1e-9, c = Math.sqrt(1 - s * s);
+      const qx = x - p.a[0], qy = y - p.a[1], qz = z - p.a[2];
+      const h = (qx * p.b[0] + qy * p.b[1] + qz * p.b[2]) / s;
+      const len = Math.sqrt(qx * qx + qy * qy + qz * qz), w = Math.sqrt(Math.max(0, len * len - h * h));
+      // inside the cone of the bowl: distance to the sphere; outside it: distance to the rim circle
+      return (c * w < s * h ? Math.abs(len - p.R) : Math.hypot(w - p.R * s, h - p.R * c)) - p.r;
+    }
   }
   return Infinity;
 }
@@ -94,7 +103,8 @@ export function primBounds(p: Primitive): { lo: Vec3; hi: Vec3 } {
       const e = p.R + Math.hypot(p.b[0], p.b[1], p.b[2]);
       return { lo: [p.a[0] - e, p.a[1] - e, p.a[2] - e], hi: [p.a[0] + e, p.a[1] + e, p.a[2] + e] };
     }
-    case Prim.Torus: {
+    case Prim.Torus:
+    case Prim.Bowl: {
       const e = p.R + p.r;
       return { lo: [p.a[0] - e, p.a[1] - e, p.a[2] - e], hi: [p.a[0] + e, p.a[1] + e, p.a[2] + e] };
     }

@@ -80,6 +80,33 @@ export function discMesh(c: Vec3, axis: Vec3, halfThickness: number, rOut: numbe
   return finish(pos, idx);
 }
 
+/**
+ * A curved sheet: the part of a spherical shell of radius R about `c` within the angle whose sine
+ * is `sinHalf` of `axis`, 2·halfThickness thick, with a rounded rim.
+ */
+export function bowlMesh(c: Vec3, axis: Vec3, sinHalf: number, R: number, halfThickness: number, seg = 24, rings = 8): RestMesh {
+  const [u, v] = basis(axis);
+  const alpha = Math.asin(Math.min(1, sinHalf)), t = halfThickness;
+  // the section in the (radial, axial) plane, walked once around: outer face from the pole to the
+  // rim, half a turn around the rim, inner face back to the pole
+  const section: [number, number][] = [];
+  for (let i = 0; i <= rings; i++) { const a = (alpha * i) / rings; section.push([(R + t) * Math.sin(a), (R + t) * Math.cos(a)]); }
+  for (let i = 1; i < 4; i++) { const b = (Math.PI * i) / 4; section.push([R * Math.sin(alpha) + t * Math.sin(alpha + b), R * Math.cos(alpha) + t * Math.cos(alpha + b)]); }
+  for (let i = rings; i >= 0; i--) { const a = (alpha * i) / rings; section.push([(R - t) * Math.sin(a), (R - t) * Math.cos(a)]); }
+  const pos: number[] = [], idx: number[] = [];
+  for (let i = 0; i <= seg; i++) {
+    const a = (2 * Math.PI * i) / seg;
+    const dir = add(scale(u, Math.cos(a)), scale(v, Math.sin(a)));
+    for (const [r, h] of section) pos.push(...add(c, add(scale(dir, r), scale(axis, h))));
+  }
+  const n = section.length;
+  for (let i = 0; i < seg; i++) for (let j = 0; j + 1 < n; j++) {
+    const a = i * n + j, b = a + n;
+    idx.push(a, b, a + 1, a + 1, b, b + 1);
+  }
+  return finish(pos, idx);
+}
+
 /** A smooth tube along a Catmull–Rom curve through `pts`, with rounded caps. */
 export function tubeMesh(pts: Vec3[], radius: number, sides = 8, sub = 4): RestMesh {
   // Resample the curve.
@@ -156,11 +183,16 @@ export function organelleTemplates(an: Anatomy): OrganelleTemplate[] {
   };
   for (const o of an.organelles) {
     const small = Math.max(...o.b) < 0.45;
+    // (for a bowl `b` is an axis, not a size, and it has its own rule below)
     if (o.kind === Prim.Ellipsoid) push(o.material, ellipsoidMesh(o.a, o.b, small ? 18 : 30, small ? 10 : 20));
     else if (o.kind === Prim.Torus && o.material !== Mat.BudScar) push(o.material, torusMesh(o.a, o.b, o.R, o.r));
     else if (o.kind === Prim.Disc) {
       const ht = Math.hypot(...o.b) || 1e-6;
       push(o.material, discMesh(o.a, [o.b[0] / ht, o.b[1] / ht, o.b[2] / ht], ht, o.R, o.r, o.R < 0.4 ? 20 : 48));
+    }
+    else if (o.kind === Prim.Bowl) {
+      const s = Math.hypot(...o.b) || 1e-6;
+      push(o.material, bowlMesh(o.a, [o.b[0] / s, o.b[1] / s, o.b[2] / s], s, o.R, o.r, o.R * s < 0.3 ? 14 : 28, o.R * s < 0.3 ? 4 : 8));
     }
     // capsules belong to tubules, meshed below; scar tori are painted on the skin
   }

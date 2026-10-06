@@ -38,14 +38,16 @@ export const Mat = {
   Genome: 20,
   /** Structural protein of a virus drawn as a solid part: a tail tube, a spike. */
   ViralProtein: 21,
+  /** Small membrane carriers: secretory vesicles, endosomes, the Spitzenkörper of a hypha. */
+  Vesicle: 22,
 } as const;
 export type Material = (typeof Mat)[keyof typeof Mat];
-export const MATERIAL_COUNT = 22;
+export const MATERIAL_COUNT = 23;
 /** Colour slots for materials in the GPU frame uniform (see common.wgsl). */
 export const MATERIAL_SLOTS = 24;
 
 /** Primitive kinds. The numeric values are shared with the WGSL shaders. */
-export const Prim = { Ellipsoid: 0, Capsule: 1, Torus: 2, Cone: 3, Disc: 4 } as const;
+export const Prim = { Ellipsoid: 0, Capsule: 1, Torus: 2, Cone: 3, Disc: 4, Bowl: 5 } as const;
 export type PrimKind = (typeof Prim)[keyof typeof Prim];
 
 /**
@@ -56,6 +58,9 @@ export type PrimKind = (typeof Prim)[keyof typeof Prim];
  *  Cone:      a = start,  b = end, R = radius at a, r = radius at b (rounded ends)
  *  Disc:      a = centre, b = axis scaled to the half-thickness, R = outer radius, r = inner radius
  *             (a flat washer; r = 0 makes it a full disc)
+ *  Bowl:      a = centre of curvature, b = axis toward the middle of the bowl, scaled to the sine of its
+ *             half-angle, R = radius of curvature, r = half-thickness
+ *             (a curved sheet: the part of a spherical shell within that angle of the axis, with a rounded rim)
  */
 export interface Primitive {
   kind: PrimKind;

@@ -4,16 +4,16 @@ Cells as soft bodies. Grab them, stretch them, give them a nudge, and cut them o
 
 | Cell | Inside |
 |---|---|
-| **Budding yeast** | cell wall, nucleus + nucleolus, spindle, vacuoles, mitochondrial network, septin ring, myosin ring, septum, bud scars |
-| **Fission yeast** | cell wall, nucleus + nucleolus, microtubule bundles and spindle, mitochondria, many small vacuoles, contractile ring, septum, birth scar |
+| **Budding yeast** | cell wall, nucleus + nucleolus, spindle, vacuoles, mitochondrial network, cortical ER, scattered Golgi cisternae, septin ring, myosin ring, septum, bud scars |
+| **Fission yeast** | cell wall, nucleus + nucleolus, microtubule bundles and spindle, mitochondria, many small vacuoles, cortical ER, small Golgi stacks, contractile ring, septum, birth scar |
 | **E. coli** | envelope, nucleoid, ribosome-rich cytoplasm, Z ring, polar chemoreceptor arrays; no organelles |
 | **Red blood cell** | biconcave disc: membrane skeleton and haemoglobin, no nucleus |
-| **Fibroblast** | flat and spread: nucleus, nucleoli, Golgi and centrosome, stress fibres ending in focal adhesions, mitochondria |
-| **Microglia** | ramified processes, bean-shaped nucleus, lysosomes / phagolysosome, mitochondria |
-| **Neuron** | soma, axon hillock, axon + terminal, dendrites, nucleolus, Nissl bodies, mitochondria |
-| **Animal cell** | the textbook composite: plasma membrane, nucleus + nucleolus, rough ER, Golgi stacks, centrosome, mitochondria, lysosomes, peroxisomes |
-| **Plant cell** | a palisade cell of a leaf: cell wall, central vacuole, 48 chloroplasts lining the wall, nucleus, rough ER, Golgi stacks, mitochondria, peroxisomes |
-| **Aspergillus hypha** | the growing tip of a mould: wall, Spitzenkörper, several nuclei in one compartment, a septum with its pore and Woronin bodies, vacuoles, mitochondria |
+| **Fibroblast** | flat and spread: nucleus, nucleoli, Golgi ribbon and centrosome, microtubules, ER, stress fibres ending in focal adhesions, mitochondria |
+| **Microglia** | ramified processes, bean-shaped nucleus, small Golgi and centrosome, lysosomes / phagolysosome, mitochondria |
+| **Neuron** | soma, axon hillock, axon + terminal, dendrites, nucleolus, Nissl bodies, Golgi ribbon around the nucleus and an outpost in a dendrite, microtubules, mitochondria |
+| **Animal cell** | the textbook composite: plasma membrane, nucleus + nucleolus, rough ER in curved sheets around the nucleus, one Golgi ribbon curled around the centrosome, smooth ER tubules, microtubules, mitochondria, lysosomes, endosomes, peroxisomes |
+| **Plant cell** | a palisade cell of a leaf: cell wall, a vacuole taking half the cell, chloroplasts with grana lining the wall, a flattened nucleus, rough and cortical ER, Golgi stacks, mitochondria, peroxisomes |
+| **Aspergillus hypha** | the growing tip of a mould: wall, Spitzenkörper, nuclei spaced as measured, ring-shaped Golgi equivalents, microtubules, ER, a septum with its pore and Woronin bodies, vacuoles, mitochondria |
 | **Bacteriophage T4** | head with its DNA, tail sheath around the tail tube, baseplate, six long tail fibres folded up as on a free phage (all dimensions from cryo-EM) |
 | **Coronavirus** | SARS-CoV-2: envelope, 24 spikes, RNA packed in beads |
 
@@ -62,7 +62,7 @@ It needs a browser with WebGPU: current Chrome or Edge, Safari 18+, or Firefox w
 
 ## How it works
 
-- **Cell types** (`src/cells`): each is a `CellType` (see `src/contracts.ts`). It provides a body (ellipsoids, tori and tapered tubes combined by smooth union or subtraction), organelles, labels, key, stiffness per material, camera and µm-per-unit scale.
+- **Cell types** (`src/cells`): each is a `CellType` (see `src/contracts.ts`). It provides a body (ellipsoids, tori and tapered tubes combined by smooth union or subtraction; organelles can also be flat discs and curved sheets, the latter for Golgi cisternae and ER), organelles, labels, key, stiffness per material, camera and µm-per-unit scale.
 - **Cycle laws** (`src/cells/cycle`): the measured quantities of each dividing cell (lengths, growth law, nuclear volume fraction, replication periods) as constants with their sources, and pure functions of the cycle phase. The cell files build their stages from these.
 - **Organelle motion and detail** (`src/cells/cycle/dynamics.ts`, `render/shaders/organelle.wgsl`): fission yeast microtubules grow to the tip, pause and collapse; the E. coli nucleoid breathes and FtsZ clusters travel around the Z ring; mitochondria ride along the axon. The rates are measured ones, sped up by a factor given on each label, and reach the shader from the same table the tests check. Yeast nuclei carry the measured number of pores; the Golgi is stacks of seven cisternae.
 - **Fission** (`World.divide`): the last stage of a dividing cell carries a `fission` plane; when a morph lands on it the cell is split along that plane with the cutting machinery, no knife involved.

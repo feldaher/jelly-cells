@@ -72,6 +72,7 @@ function ownOrganelles(an: Anatomy): Primitive[] {
 }
 
 function centre(p: Primitive): Vec3 {
+  if (p.kind === Prim.Bowl) { const u = unit(p.b); return [p.a[0] + u[0] * p.R, p.a[1] + u[1] * p.R, p.a[2] + u[2] * p.R]; }
   return p.kind === Prim.Capsule || p.kind === Prim.Cone ? lerpV(p.a, p.b, 0.5) : p.a;
 }
 
@@ -80,7 +81,9 @@ function size(p: Primitive): number {
     case Prim.Ellipsoid: return Math.min(...p.b);
     case Prim.Torus: return p.r;
     case Prim.Capsule: return p.r;
-    case Prim.Disc: return p.R;
+    // a disc or a bowl is kept only while its middle is inside the cell (for a washer, within its hole)
+    case Prim.Disc: return p.r;
+    case Prim.Bowl: return p.r;
     default: return Math.max(p.R, p.r);
   }
 }
@@ -91,6 +94,7 @@ function collapsed(p: Primitive, at: Vec3): Primitive {
     case Prim.Ellipsoid: return { ...p, a: at, b: [0, 0, 0] };
     case Prim.Torus: return { ...p, a: at, R: 0, r: 0 };
     case Prim.Disc: return { ...p, a: at, R: 0, r: 0 };
+    case Prim.Bowl: return { ...p, a: at, R: 0, r: 0 };
     default: return { ...p, a: at, b: at, R: 0, r: 0 };
   }
 }

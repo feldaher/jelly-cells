@@ -169,6 +169,11 @@ export class TeachUi {
       ul.append(li);
     }
     $('show-all').hidden = this.hidden === 0;
+    // a long key reaches down to the help text on a short window: the help gives way
+    requestAnimationFrame(() => {
+      const help = document.getElementById('help');
+      if (help) help.style.visibility = ul.getBoundingClientRect().bottom + 28 > help.getBoundingClientRect().top ? 'hidden' : '';
+    });
   }
 
   /** Per frame: place labels, update the scale bar, show a new cut report. */

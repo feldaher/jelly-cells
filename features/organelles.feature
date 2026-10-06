@@ -9,6 +9,14 @@ Feature: Organelles placed and sized from measurements
     And points in the hole, beyond the rim and off the plane are outside
     And the shader evaluates the same primitive kind
 
+  Scenario: A bowl primitive is a curved sheet
+    Given a bowl of radius 2, half-angle 30 degrees and half-thickness 0.05 about the x axis
+    When its distance field is sampled
+    Then points on the curved sheet are inside, 0.05 from either face
+    And the centre of curvature, the far side of the sphere and points past the rim are outside
+    And its mesh lies on its own surface
+    And the shader evaluates the same primitive kind as the bowl
+
   Scenario: The budding yeast nucleus keeps 7 percent of the cell volume
     Given the budding yeast cell at every stage
     When nuclear and cell volumes are measured
