@@ -70,9 +70,10 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
 
   Scenario('Condensates are not there until the heat has formed them', ({ Given, When, Then }) => {
     let world: World;
+    // Only the stress clock is under test: one physics substep keeps the 4,000-odd frames cheap.
     const run = (minutes: number) => { for (let i = 0; i < minutes * 60; i++) world.update(1 / 60); };
     const hidden = () => (world.hiddenMaterials & (1 << Mat.Condensate)) !== 0;
-    Given('a yeast cell in the world', () => { world = new World('yeast'); });
+    Given('a yeast cell in the world', () => { world = new World('yeast'); world.params.substeps = 1; });
     Then('its condensates are hidden', () => { expect(hidden()).toBe(true); });
     When('it is moved to 42 degrees for 30 cell minutes', () => { world.setStress('heat', 42); run(30); });
     Then('its condensates are still hidden', () => { expect(world.stressMinutes).toBeGreaterThan(29); expect(hidden()).toBe(true); });
@@ -166,9 +167,10 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
 
   Scenario('The world carries the cell\'s state into recovery', ({ Given, When, Then }) => {
     let world: World;
+    // Only the stress clock is under test: one physics substep keeps the 4,000-odd frames cheap.
     const run = (minutes: number) => { for (let i = 0; i < minutes * 60; i++) world.update(1 / 60); };
     const hidden = () => (world.hiddenMaterials & (1 << Mat.Condensate)) !== 0;
-    Given('a yeast cell in the world, 8 cell minutes at 46 degrees', () => { world = new World('yeast'); world.setStress('heat', 46); run(8.2); });
+    Given('a yeast cell in the world, 8 cell minutes at 46 degrees', () => { world = new World('yeast'); world.params.substeps = 1; world.setStress('heat', 46); run(8.2); });
     When('it is returned to 30 degrees for 20 cell minutes', () => { world.setStress('heat', 30); run(20); });
     Then('its condensates are still shown and partly dissolved', () => {
       expect(hidden()).toBe(false);

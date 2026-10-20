@@ -8,7 +8,6 @@
 import { Mat, Prim, type Anatomy, type CellType, type Ellipsoid, type Label, type Primitive, type Stage, type Vec3 } from '../contracts';
 import { rng } from '../math/mat3';
 import { cellSdf, materialAt, primSdf } from '../anatomy/sdf';
-import { addTubule, cone, ell, finish, samplePoint, union } from './common';
 import { addTubule, anchorIn, bowl, bowlMid, cone, ell, finish, norm3, ray, samplePoint, union } from './common';
 import { buddingNucleusRadius } from './cycle/budding';
 import { ellipsoidVolume } from './cycle/geometry';
@@ -224,15 +223,6 @@ export function buildYeast(seed = 7, stage = 2): Anatomy {
   // Vacuole inheritance: a tubular stream leaves the mother's vacuole for the young bud.
   if (plan.vacuoleStream) addTubule(net, plan.vacuoleStream, 0.1, Mat.Vacuole);
 
-  // Stress granules, scattered through the free cytoplasm of mother and bud at the same density.
-  // They are hidden until heat has formed them (World.hiddenMaterials). Their own random
-  // sequence, so everything above is placed as it was before they existed.
-  const grand = rng(seed + 977), gr = CONDENSATE.radiusUm;
-  const clear = (p: Vec3) => cellSdf(an, p[0], p[1], p[2]) < -(an.wallThickness + 2 * gr) && organelles.every((o) => primSdf(o, p[0], p[1], p[2]) > 2 * gr);
-  for (const [e, count] of [[mother, CONDENSATE.perMother], [bud, Math.round((CONDENSATE.perMother * vBud) / vMother)]] as [Ellipsoid, number][]) {
-    for (let i = 0; i < count; i++) {
-      const c = samplePoint(grand, [e.centre[0] - e.radii[0], e.centre[1] - e.radii[1], e.centre[2] - e.radii[2]], [e.centre[0] + e.radii[0], e.centre[1] + e.radii[1], e.centre[2] + e.radii[2]], clear);
-      if (c) add(Prim.Ellipsoid, Mat.Condensate, c, [gr, gr, gr]);
   // Endoplasmic reticulum and Golgi, placed with their own random sequence so that everything
   // above stays where it was. The ER of budding yeast is the nuclear envelope plus a peripheral
   // part: tubules, a few cisternae in the cytoplasm, and a large domain of tubules and fenestrated
@@ -262,6 +252,17 @@ export function buildYeast(seed = 7, stage = 2): Anatomy {
       const c = samplePoint(golgiRand, [e.centre[0] - e.radii[0], e.centre[1] - e.radii[1], e.centre[2] - e.radii[2]], [e.centre[0] + e.radii[0], e.centre[1] + e.radii[1], e.centre[2] + e.radii[2]], clearOfAll(0.24));
       const axis = norm3([golgiRand() - 0.5, golgiRand() - 0.5, golgiRand() - 0.5]);
       if (c) add(Prim.Disc, Mat.Golgi, c, [axis[0] * 0.018, axis[1] * 0.018, axis[2] * 0.018], 0.19, 0);
+    }
+  }
+  // Stress granules, scattered through the free cytoplasm of mother and bud at the same density.
+  // They are hidden until heat has formed them (World.hiddenMaterials). Their own random
+  // sequence, so everything above is placed as it was before they existed.
+  const grand = rng(seed + 977), gr = CONDENSATE.radiusUm;
+  const clear = (p: Vec3) => cellSdf(an, p[0], p[1], p[2]) < -(an.wallThickness + 2 * gr) && organelles.every((o) => primSdf(o, p[0], p[1], p[2]) > 2 * gr);
+  for (const [e, count] of [[mother, CONDENSATE.perMother], [bud, Math.round((CONDENSATE.perMother * vBud) / vMother)]] as [Ellipsoid, number][]) {
+    for (let i = 0; i < count; i++) {
+      const c = samplePoint(grand, [e.centre[0] - e.radii[0], e.centre[1] - e.radii[1], e.centre[2] - e.radii[2]], [e.centre[0] + e.radii[0], e.centre[1] + e.radii[1], e.centre[2] + e.radii[2]], clear);
+      if (c) add(Prim.Ellipsoid, Mat.Condensate, c, [gr, gr, gr]);
     }
   }
 
@@ -329,14 +330,14 @@ function yeastLabels(an: Anatomy): Label[] {
     blurb: an.stage === 5
       ? 'Myosin II and actin, contracting to a point. Yeast can divide without it, more slowly: the septum does much of the work (Bi et al. 1998).'
       : 'Myosin II has sat at the neck since the bud emerged. At the end of anaphase actin joins it, and the ring is ready to contract (Bi et al. 1998).' });
-  const granule = all(Mat.Condensate)[0];
-  if (granule) labels.push({ id: 'granule', name: 'Stress granule', material: Mat.Condensate, anchor: granule.a, size: `drawn ${(2 * CONDENSATE.radiusUm).toFixed(2)} µm across`,
-    blurb: 'Poly(A)-binding protein Pab1 and other RNA-binding proteins, gathered with mRNA into a solid-like assembly by severe heat (46 °C). The granules form within minutes; once the heat is gone the disaggregase Hsp104 takes them apart again, within about an hour, and the proteins are reused, not degraded (Wallace et al. 2015; Cherkasov et al. 2013). At 42 °C the same proteins assemble into particles too small to see. The number and size of the granules drawn here are not measured values.' });
   const erSheets = all(Mat.ER).filter((o) => o.kind === Prim.Bowl), cisternae = all(Mat.Golgi);
   if (erSheets.length) labels.push({ id: 'er', name: 'Cortical ER', material: Mat.ER, anchor: anchorIn(an, erSheets.map(bowlMid), Mat.ER), size: 'sheets ≈ 36 nm thick',
     blurb: 'The endoplasmic reticulum of yeast is the nuclear envelope plus a peripheral network of tubules and sheets, most of it lying flat against the plasma membrane and pierced by holes (West et al. 2011). A few tubules join it to the nuclear envelope. It is pulled into the bud early, so the daughter inherits hers. Only patches of the cortical sheet and two tubules are drawn.' });
   if (cisternae.length) labels.push({ id: 'golgi', name: 'Golgi cisterna', material: Mat.Golgi, anchor: anchorIn(an, cisternae.map((o) => o.a), Mat.Golgi), size: 'drawn ≈ 0.4 µm across',
     blurb: 'In baker\'s yeast the Golgi is not a stack. Its cisternae lie scattered singly through the cytoplasm, each maturing from an early to a late compartment over a few minutes; the stacked Golgi of other yeasts and of animal cells is the same machinery kept together (Rossanese et al. 1999). The number and size drawn are not measured values.' });
+  const granule = all(Mat.Condensate)[0];
+  if (granule) labels.push({ id: 'granule', name: 'Stress granule', material: Mat.Condensate, anchor: granule.a, size: `drawn ${(2 * CONDENSATE.radiusUm).toFixed(2)} µm across`,
+    blurb: 'Poly(A)-binding protein Pab1 and other RNA-binding proteins, gathered with mRNA into a solid-like assembly by severe heat (46 °C). The granules form within minutes; once the heat is gone the disaggregase Hsp104 takes them apart again, within about an hour, and the proteins are reused, not degraded (Wallace et al. 2015; Cherkasov et al. 2013). At 42 °C the same proteins assemble into particles too small to see. The number and size of the granules drawn here are not measured values.' });
   if (septum) labels.push({ id: 'septum', name: 'Septum', material: Mat.Septum, anchor: [septum.a[0], septum.a[1], septum.a[2] + septum.r + 0.04], size: '',
     blurb: 'A plate of chitin that grows inward behind the ring and seals the neck. What is left of it on the mother is the bud scar.' });
   return labels;

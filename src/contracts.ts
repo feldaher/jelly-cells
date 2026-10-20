@@ -31,11 +31,6 @@ export const Mat = {
   Golgi: 16,
   /** Chemoreceptor array. */
   Receptor: 17,
-  /** Stress-induced protein and RNA condensate (a stress granule); shown only while a stress has formed them. */
-  Condensate: 18,
-} as const;
-export type Material = (typeof Mat)[keyof typeof Mat];
-export const MATERIAL_COUNT = 19;
   Chloroplast: 18,
   /** Peroxisomes, and the Woronin bodies fungi make from them. */
   Peroxisome: 19,
@@ -45,9 +40,11 @@ export const MATERIAL_COUNT = 19;
   ViralProtein: 21,
   /** Small membrane carriers: secretory vesicles, endosomes, the Spitzenkörper of a hypha. */
   Vesicle: 22,
+  /** Stress-induced protein and RNA condensate (a stress granule); shown only while a stress has formed them. */
+  Condensate: 23,
 } as const;
 export type Material = (typeof Mat)[keyof typeof Mat];
-export const MATERIAL_COUNT = 23;
+export const MATERIAL_COUNT = 24;
 /** Colour slots for materials in the GPU frame uniform (see common.wgsl). */
 export const MATERIAL_SLOTS = 24;
 
