@@ -4,7 +4,7 @@
 //   3. per piece, back to front: back-face depth → jelly front faces refracting the scene
 //   4. composite to the canvas (+ tet edges when "Show mesh" is on)
 
-import { MATERIAL_SLOTS, type Anatomy, type Piece, type SkinMesh, type Vec3, type ViewMode } from '../contracts';
+import { MATERIAL_SLOTS, type Anatomy, type Piece, type SkinMesh, type Vec3, type ViewMode, type WorldMesh } from '../contracts';
 import { packAnatomyGPU } from '../anatomy/sdf';
 import { lookAt, mul, ortho, perspective, type M4 } from '../math/mat4';
 import { packPalette, type Variety } from './palette';
@@ -30,14 +30,7 @@ export interface Camera {
   lensShiftX?: number;
 }
 
-/** A CPU-side triangle mesh in world space, uploaded as-is (used for the knife). */
-export interface WorldMesh {
-  pos: Float32Array;
-  normal: Float32Array;
-  /** 4 floats per vertex; w selects steel (0) or handle (1). */
-  rest: Float32Array;
-  idx: Uint32Array;
-}
+export type { WorldMesh } from '../contracts';
 
 export interface FrameOptions {
   variety: Variety;

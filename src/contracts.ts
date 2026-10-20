@@ -4,7 +4,11 @@
 // Units: sim units; each cell type says how many µm one unit stands for (`umPerUnit`).
 // World is y-up, the floor is the plane y = 0.
 
-export type Vec3 = [number, number, number];
+import type { Plane, Primitive as EnginePrimitive, Vec3 } from './engine/contracts';
+
+// The engine's types (soft bodies, meshes, cuts); this file adds the cells.
+export type { CutChild, CutPlan, Piece, Plane, PrimKind, SimMesh, SimParams, SkinMesh, Vec3, WorldMesh } from './engine/contracts';
+export { Prim, PRIM_STRIDE } from './engine/contracts';
 
 /** Material ids. The numeric values are shared with the WGSL shaders. */
 export const Mat = {
@@ -48,36 +52,8 @@ export const MATERIAL_COUNT = 24;
 /** Colour slots for materials in the GPU frame uniform (see common.wgsl). */
 export const MATERIAL_SLOTS = 24;
 
-/** Primitive kinds. The numeric values are shared with the WGSL shaders. */
-export const Prim = { Ellipsoid: 0, Capsule: 1, Torus: 2, Cone: 3, Disc: 4, Bowl: 5 } as const;
-export type PrimKind = (typeof Prim)[keyof typeof Prim];
-
-/**
- * One organelle SDF primitive, in rest space.
- *  Ellipsoid: a = centre, b = radii
- *  Capsule:   a = start,  b = end, r = radius
- *  Torus:     a = centre, b = unit axis, R = major radius, r = minor radius
- *  Cone:      a = start,  b = end, R = radius at a, r = radius at b (rounded ends)
- *  Disc:      a = centre, b = axis scaled to the half-thickness, R = outer radius, r = inner radius
- *             (a flat washer; r = 0 makes it a full disc)
- *  Bowl:      a = centre of curvature, b = axis toward the middle of the bowl, scaled to the sine of its
- *             half-angle, R = radius of curvature, r = half-thickness
- *             (a curved sheet: the part of a spherical shell within that angle of the axis, with a rounded rim)
- */
-export interface Primitive {
-  kind: PrimKind;
-  material: Material;
-  a: Vec3;
-  b: Vec3;
-  R: number;
-  r: number;
-}
-
-/**
- * Floats per primitive in the packed GPU buffer: [kind, material, R, r, a.xyz, op, b.xyz, blend].
- * Body parts come first, then organelles.
- */
-export const PRIM_STRIDE = 12;
+/** One organelle or body SDF primitive (see the engine's Primitive), with a Jelly Cells material. */
+export type Primitive = EnginePrimitive<Material>;
 
 export interface Ellipsoid {
   centre: Vec3;
@@ -274,54 +250,6 @@ export interface SectionEntry {
   count: number;
 }
 
-/** Half-space n·x ≤ d is kept. n is unit length. */
-export interface Plane {
-  n: Vec3;
-  d: number;
-}
-
-/** Tetrahedral simulation mesh of one piece. Arrays are flat xyz / 4-index. */
-export interface SimMesh {
-  restPos: Float32Array;
-  pos: Float32Array;
-  prevPos: Float32Array;
-  vel: Float32Array;
-  invMass: Float32Array;
-  tets: Uint32Array;
-  tetMaterial: Uint8Array;
-  /** Inverse rest edge matrix Dm⁻¹ per tet, 9 floats column-major. */
-  restInv: Float32Array;
-  restVol: Float32Array;
-  /** Unique tet edges, 2 indices each (for damping and mesh display). */
-  edges: Uint32Array;
-  /** Lattice spacing the mesh was built with (µm). */
-  spacing: number;
-}
-
-/** A render surface whose vertices ride along inside the tets by barycentric weights. */
-export interface SkinMesh {
-  restPos: Float32Array;
-  pos: Float32Array;
-  normal: Float32Array;
-  idx: Uint32Array;
-  tetId: Uint32Array;
-  /** 4 weights per vertex, summing to 1. */
-  bary: Float32Array;
-  /** 1 when the vertex belongs to a flat knife face, 0 on the natural cell surface. */
-  isCutFace: Uint8Array;
-  /** Organelle material, or Cytoplasm for the cell skin. */
-  material: Material;
-  /** Rest-space normals from the SDF; when present, normals follow each tet's deformation exactly. */
-  restNormal?: Float32Array;
-  /**
-   * Organelles only. Per vertex: the whole part says which organelle of this material it belongs to
-   * (plus COORD_MOVING when it moves), the fraction how far along a tube it is (see mesh/organelleMesh).
-   */
-  coord?: Float32Array;
-  /** Per-vertex value in [0, 1] shown by the deformation view (absent in the anatomy view). */
-  scalar?: Float32Array;
-}
-
 /**
  * What the jelly is coloured by: its anatomy, how much it is deformed (mechanical strain),
  * or where a fluorescently tagged protein is (the cell type's stress reporter).
@@ -335,46 +263,6 @@ export interface Stage {
   /** Title of the stage, e.g. "Unbudded". */
   title: string;
   blurb: string;
-}
-
-export interface Piece {
-  id: number;
-  /** Rest-space cut planes bounding this piece (empty for the intact cell). */
-  planes: Plane[];
-  sim: SimMesh;
-  skin: SkinMesh;
-  organelles: SkinMesh[];
-  /** Pieces made by the same knife stroke share a group; contact between them eases in. */
-  cutGroup?: number;
-  /** Simulation time (s) at which the piece was swapped in. */
-  bornAt?: number;
-}
-
-export interface SimParams {
-  /** 0 (trembling) … 1 (set). */
-  firmness: number;
-  /** 0 (lively) … 1 (syrupy). */
-  damping: number;
-  substeps: number;
-  gravity: number;
-  friction: number;
-  /** Stiffness multiplier per material id. */
-  materialStiffness: number[];
-  /** Volume of the rest shape relative to the mesh as built (1 = as built); the rest shape scales uniformly. */
-  volume: number;
-}
-
-/** A child piece plus where each of its particles sits inside the parent's rest mesh. */
-export interface CutChild {
-  piece: Piece;
-  tetId: Uint32Array;
-  bary: Float32Array;
-}
-
-/** A knife cut in world space: a plane plus which pieces it will split and into what. */
-export interface CutPlan {
-  world: Plane;
-  splits: { parent: Piece; children: CutChild[] }[];
 }
 
 export interface Stats {
