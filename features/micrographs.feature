@@ -1,11 +1,12 @@
 Feature: Real micrographs on the label cards
   Every label card shows a real electron, fluorescence or light micrograph of the
-  structure, from Wikimedia Commons, with its author and licence.
+  structure, from Wikimedia Commons, with its author and licence. The few structures
+  Commons has no micrograph of are listed, and their cards go without.
 
   Scenario Outline: Every label has a credited micrograph
     Given the <cell> cell type
     When its labels are listed at every stage
-    Then each label has a micrograph
+    Then each label has a micrograph, unless Commons has no image of that structure
     And each micrograph is public domain, CC0, CC BY or CC BY-SA with an author
     And each micrograph file is in the site's public folder
     And each micrograph names its Commons file and says what it shows

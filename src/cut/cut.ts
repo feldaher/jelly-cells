@@ -37,8 +37,11 @@ export function bestFitPose(s: SimMesh): Pose {
   return { R: extractRotation(A, [0, 0, 0, 1], 40), c, C };
 }
 
-/** The world plane n·x = d expressed in a piece's rest space. */
-export function planeToRest(world: Plane, pose: Pose): Plane {
+/**
+ * The world plane n·x = d expressed in a piece's rest space. `scale` is the linear size of the
+ * rest shape relative to the mesh as built: world ≈ scale·R·(rest − C) + c.
+ */
+export function planeToRest(world: Plane, pose: Pose, scale = 1): Plane {
   const { R, c, C } = pose;
   const n = world.n;
   const nr: Vec3 = [
@@ -46,7 +49,7 @@ export function planeToRest(world: Plane, pose: Pose): Plane {
     R[3] * n[0] + R[4] * n[1] + R[5] * n[2],
     R[6] * n[0] + R[7] * n[1] + R[8] * n[2],
   ];
-  const d = world.d - (n[0] * c[0] + n[1] * c[1] + n[2] * c[2]) + (nr[0] * C[0] + nr[1] * C[1] + nr[2] * C[2]);
+  const d = (world.d - (n[0] * c[0] + n[1] * c[1] + n[2] * c[2])) / scale + (nr[0] * C[0] + nr[1] * C[1] + nr[2] * C[2]);
   return { n: nr, d };
 }
 
@@ -71,10 +74,10 @@ export interface SplitJob {
 }
 
 /** The cheap half of planning: which pieces the plane really splits, and where in rest space. */
-export function findSplits(pieces: Piece[], world: Plane): SplitJob[] {
+export function findSplits(pieces: Piece[], world: Plane, scale = 1): SplitJob[] {
   const jobs: SplitJob[] = [];
   for (const parent of pieces) {
-    const rest = planeToRest(world, bestFitPose(parent.sim));
+    const rest = planeToRest(world, bestFitPose(parent.sim), scale);
     const [a, b] = sideVolumes(parent.sim, rest);
     if (a >= MIN_SIDE_VOLUME && b >= MIN_SIDE_VOLUME) jobs.push({ parent, rest });
   }

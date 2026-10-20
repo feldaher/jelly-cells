@@ -6,10 +6,14 @@ import type { Piece, SimMesh } from '../contracts';
 /** Strain shown at full colour (30 %). */
 export const STRAIN_FULL = 0.3;
 
-/** Green–Lagrange strain magnitude ‖½(FᵀF − I)‖ per tet: zero for any rigid motion. */
-export function tetStrain(s: SimMesh): Float32Array {
+/**
+ * Green–Lagrange strain magnitude ‖½(FᵀF − I)‖ per tet: zero for any rigid motion. `scale` is
+ * the linear size of the rest shape relative to the mesh as built (see SimParams.volume).
+ */
+export function tetStrain(s: SimMesh, scale = 1): Float32Array {
   const { pos: x, tets: T, restInv: M } = s;
   const out = new Float32Array(T.length / 4);
+  const inv2 = 1 / (scale * scale);
   for (let t = 0; t < out.length; t++) {
     const i0 = 3 * T[4 * t], i1 = 3 * T[4 * t + 1], i2 = 3 * T[4 * t + 2], i3 = 3 * T[4 * t + 3], m = 9 * t;
     const d1x = x[i1] - x[i0], d1y = x[i1 + 1] - x[i0 + 1], d1z = x[i1 + 2] - x[i0 + 2];
@@ -23,7 +27,7 @@ export function tetStrain(s: SimMesh): Float32Array {
     // C = FᵀF: C_ij = f_i · f_j (columns of F)
     let e2 = 0;
     for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
-      const c = f[i][0] * f[j][0] + f[i][1] * f[j][1] + f[i][2] * f[j][2];
+      const c = (f[i][0] * f[j][0] + f[i][1] * f[j][1] + f[i][2] * f[j][2]) * inv2;
       const e = 0.5 * (c - (i === j ? 1 : 0));
       e2 += e * e;
     }
@@ -44,9 +48,9 @@ export function nodalAverage(s: SimMesh, perTet: Float32Array): Float32Array {
 }
 
 /** Fills `piece.skin.scalar` with the strain mapped to [0, 1] (full colour at STRAIN_FULL) and returns it. */
-export function deformationScalars(piece: Piece): Float32Array {
+export function deformationScalars(piece: Piece, scale = 1): Float32Array {
   const s = piece.sim, skin = piece.skin;
-  const nodal = nodalAverage(s, tetStrain(s));
+  const nodal = nodalAverage(s, tetStrain(s, scale));
   const out = skin.scalar && skin.scalar.length === skin.tetId.length ? skin.scalar : new Float32Array(skin.tetId.length);
   for (let v = 0; v < out.length; v++) {
     const t = 4 * skin.tetId[v];

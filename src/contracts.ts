@@ -31,6 +31,11 @@ export const Mat = {
   Golgi: 16,
   /** Chemoreceptor array. */
   Receptor: 17,
+  /** Stress-induced protein and RNA condensate (a stress granule); shown only while a stress has formed them. */
+  Condensate: 18,
+} as const;
+export type Material = (typeof Mat)[keyof typeof Mat];
+export const MATERIAL_COUNT = 19;
   Chloroplast: 18,
   /** Peroxisomes, and the Woronin bodies fungi make from them. */
   Peroxisome: 19,
@@ -168,6 +173,84 @@ export interface CellType {
   camera: { dist: number; yaw: number; pitch: number };
   help: string;
   about: string;
+  /** The stresses this cell has a measured response to; cells without any have no stress lab. */
+  stress?: StressResponse[];
+}
+
+/** A cell's state some time after a stress began. */
+export interface StressState {
+  /** Cell volume relative to the unstressed cell. */
+  relVolume: number;
+  /** What the reporter reads out (see `StressResponse.signalName`): 0 = as unstressed, 1 = the largest response. */
+  signal: number;
+  /** How far visible condensates (foci) have formed, 0–1. */
+  foci: number;
+}
+
+/** How the Reporter view is lit: brightness of each part relative to the unstressed cytoplasm. */
+export interface ReporterLook {
+  cytoplasm: number;
+  nucleus: number;
+  condensate: number;
+}
+
+export type StressId = 'osmotic' | 'heat';
+
+/** A cell type's measured response to one kind of stress (src/cells/stress). */
+export interface StressResponse {
+  id: StressId;
+  /** Short name on its button, e.g. "Salt". */
+  name: string;
+  /** The tagged protein the Reporter view shows, e.g. "Hog1-GFP". */
+  reporter: string;
+  /** What `StressState.signal` measures, e.g. "Nuclear Hog1". */
+  signalName: string;
+  /** The dose at which the cell is unstressed (0 M NaCl, 30 °C). */
+  baseline: number;
+  /** The doses that were measured; the lab offers these. */
+  doses: number[];
+  /** A dose as text with its unit, e.g. "0.4 M" or "42 °C". */
+  format(dose: number): string;
+  /** How many times faster than real time the response is shown. */
+  speedup: number;
+  /** Where the numbers come from, as shown to the player. */
+  source: string;
+  /** What the live graph plots, the main line first. */
+  traces: { key: 'signal' | 'foci'; name: string }[];
+  /**
+   * State `minutes` after the dose was set to `dose`, for a cell that was in state `from` at
+   * that moment (unstressed when omitted). A response that does not model a change from one
+   * stressed state to another ignores `from`.
+   */
+  at(dose: number, minutes: number, from?: StressState): StressState;
+  look(state: StressState): ReporterLook;
+}
+
+/** One stress experiment as the player measured it. */
+export interface RunRecord {
+  stress: StressId;
+  dose: number;
+  /** Cell minutes observed so far. */
+  minutes: number;
+  /** Lowest volume seen, relative to the unstressed cell. */
+  lowestVolume: number;
+  /** Highest reporter signal seen, 0–1. */
+  highestSignal: number;
+  /** Minute at which the signal was highest; null until it has passed its peak. */
+  peakMinutes: number | null;
+  /** Whether visible condensates were seen. */
+  foci: boolean;
+  /** The samples taken, for the live graph. */
+  trace: TracePoint[];
+  /** Minutes at which the dose was changed during the run (e.g. back to the growth temperature). */
+  changes: number[];
+}
+
+/** One sample of a run. */
+export interface TracePoint {
+  minutes: number;
+  signal: number;
+  foci: number;
 }
 
 /** A real image of a labelled structure, from Wikimedia Commons, shown on its label card. */
@@ -242,8 +325,11 @@ export interface SkinMesh {
   scalar?: Float32Array;
 }
 
-/** What the jelly is coloured by: its anatomy, or how much it is deformed (mechanical strain). */
-export type ViewMode = 'anatomy' | 'deformation';
+/**
+ * What the jelly is coloured by: its anatomy, how much it is deformed (mechanical strain),
+ * or where a fluorescently tagged protein is (the cell type's stress reporter).
+ */
+export type ViewMode = 'anatomy' | 'deformation' | 'reporter';
 
 /** A point in a cell's life that the anatomy can be built at (e.g. a cell-cycle phase). */
 export interface Stage {
@@ -277,6 +363,8 @@ export interface SimParams {
   friction: number;
   /** Stiffness multiplier per material id. */
   materialStiffness: number[];
+  /** Volume of the rest shape relative to the mesh as built (1 = as built); the rest shape scales uniformly. */
+  volume: number;
 }
 
 /** A child piece plus where each of its particles sits inside the parent's rest mesh. */

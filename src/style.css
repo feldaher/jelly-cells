@@ -10,7 +10,7 @@
   --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
   color-scheme: light;
 }
-:root[data-variety='fluorescence'] { color-scheme: dark; --panel: color-mix(in srgb, var(--bg) 85%, white); }
+:root[data-variety='fluorescence'], :root[data-variety='reporter'] { color-scheme: dark; --panel: color-mix(in srgb, var(--bg) 85%, white); }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; }
@@ -54,6 +54,7 @@ h1 .indent { padding-left: 0.48em; }
 .fig { font: italic 14px var(--serif); color: var(--muted); }
 .group { padding: 16px 0 14px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; }
 .group:last-child { border-bottom: 0; padding-bottom: 0; }
+.group[hidden] { display: none; }
 
 .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .tool, .btn {
@@ -292,3 +293,33 @@ select option { font: 14px var(--sans); color: #1d1b19; background: #fff; }
 .colorbar i { display: block; width: 180px; height: 10px; border-radius: 1px;
   background: linear-gradient(90deg, #440154, #3b528b, #21918c, #5ec962, #fde725); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 20%, transparent); }
 @media (max-width: 900px) { .colorbar { bottom: calc(42vh + 60px); } }
+
+/* The stress lab: dose buttons, live readout, table of runs. */
+.doses { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.dose { font: 400 12px var(--mono); color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 8px 2px; cursor: pointer; }
+.dose.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.dose:not(.active):hover { border-color: var(--faint); }
+.dose:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.stress-now { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stress-now > div { display: grid; gap: 3px; }
+.stress-now b { font: 400 20px var(--mono); }
+.stress-now i { font: 10.5px var(--sans); color: var(--muted); font-style: normal; margin-top: -2px; }
+.runs { width: 100%; border-collapse: collapse; font: 400 11.5px var(--mono); }
+.runs[hidden] { display: none; }
+.runs th { font: 500 10px var(--sans); color: var(--muted); text-align: left; padding: 0 6px 4px 0; border-bottom: 1px solid var(--line); }
+.runs td { padding: 4px 0; border-bottom: 1px solid var(--line); }
+
+.graph {
+  position: fixed; right: 350px; bottom: 28px; width: 270px; margin: 0; padding: 10px 12px 8px; display: grid; gap: 5px;
+  border: 1px solid var(--line); background: color-mix(in srgb, var(--panel) 55%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.graph[hidden] { display: none; }
+@media (max-width: 900px) { .graph { right: auto; left: 16px; bottom: calc(42vh + 10px); width: 52vw; } }
+.graph svg { width: 100%; height: 80px; border-left: 1px solid var(--faint); border-bottom: 1px solid var(--faint); overflow: visible; }
+.graph path, .graph line { fill: none; vector-effect: non-scaling-stroke; }
+.graph .grid { stroke: var(--line); stroke-width: 1; }
+.graph .mark { stroke: var(--faint); stroke-width: 1; stroke-dasharray: 2 3; }
+.graph .old { stroke: var(--faint); stroke-width: 1; }
+.graph .main { stroke: var(--ink); stroke-width: 1.6; }
+.graph .second { stroke: var(--ink); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.graph figcaption { display: flex; justify-content: space-between; gap: 6px; font: 400 10px var(--mono); color: var(--muted); }
