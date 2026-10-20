@@ -93,6 +93,10 @@ The types every layer agrees on live in `src/contracts.ts`. Behaviour is specifi
 
 Each specimen maps sim units to µm (coronavirus 0.018, bacteriophage 0.02, E. coli 0.35, yeast 1, Aspergillus 1, fission yeast 1.25, RBC 1.25, microglia 1.5, neuron 2, animal cell 3, fibroblast 4, plant cell 6), so labels, the scale bar, the cut report and the mass are in real units. The specimens therefore all look about the same size on screen while spanning a factor of 500: watch the scale bar. The *dynamics* are illustrative: every cell moves as if it were a few centimetres of gelatin. At true size a cell lives at very low Reynolds number and would never visibly wobble.
 
+## Sources
+
+Every measured value in the app, with the paper it comes from and how far it was checked (A = read at the source … D = our own drawing choice), is listed in [`docs/sources/`](docs/sources/README.md).
+
 ## Image credits
 
 The label-card micrographs are from Wikimedia Commons. They are public domain, CC0, CC BY or CC BY-SA; each card names the author and licence and links the file page. They are served as 640 px copies from `public/micrographs/`. Where Commons has no image of the right organism, the caption says what is shown instead (e.g. HeLa mitochondria on the yeast card).
