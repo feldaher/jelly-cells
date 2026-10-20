@@ -37,9 +37,20 @@ Feature: Organelles that look and move as measured
     Given the table of organelle motions
     Then the pore pattern gives between 65 and 182 pores on a budding yeast nucleus
 
-  Scenario: The Golgi is a ribbon of stacks of seven cisternae
-    Given the fibroblast cell at every stage
-    Then its Golgi is three stacks of seven flat cisternae
+  Scenario Outline: The Golgi is one ribbon of stacks of seven curved cisternae
+    Given the <cell> cell at every stage
+    Then its Golgi cisternae are curved sheets, hollow side toward the centrosome
+    And they form stacks of seven, each about 1 micrometre wide
+    And neighbouring stacks meet at every level, so the ribbon is one piece
+
+    Examples:
+      | cell       |
+      | fibroblast |
+      | animal     |
+
+  Scenario: Rough ER wraps the nucleus of the animal cell in curved sheets
+    Given the animal cell
+    Then its rough ER sheets are curved about the centre of the nucleus and lie outside it
 
   Scenario: Nissl bodies are stacks of flat cisternae
     Given the neuron cell at every stage

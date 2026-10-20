@@ -1,6 +1,6 @@
 // Real micrographs for the label cards, all from Wikimedia Commons (public domain,
 // CC0, CC BY or CC BY-SA). Licence and author are as Commons records them (checked
-// 2026-09-30, and 2026-10-05 for the fission yeast, E. coli, Golgi and centrosome images); every image was looked at to confirm the caption. Where no image of the
+// 2026-09-30, and 2026-10-05 for the fission yeast, E. coli, Golgi, centrosome, plant, virus and Aspergillus images); every image was looked at to confirm the caption. Where no image of the
 // right organism exists, the caption says what is shown instead. Files are 640 px
 // copies in public/micrographs.
 
@@ -9,12 +9,45 @@ import type { CellTypeId, Micrograph } from '../contracts';
 type Pic = Omit<Micrograph, 'src'>;
 
 const PICS: Record<string, Pic> = {
+  // added 2026-10-05 for the animal cell, plant cell, Aspergillus hypha and the two viruses
+  'chloroplast-tem': { commons: 'File:Chloroplast in leaf of Anemone sp TEM 12000x.png', author: 'and3k and caper437', license: 'CC BY-SA 3.0', modality: 'TEM',
+    caption: 'A chloroplast in a leaf cell of an anemone, in thin section: the dark stacked membranes are the thylakoids that carry chlorophyll. It lies pressed against the cell wall (top), with the vacuole below.' },
+  'moss-chloroplasts': { commons: 'File:Bryum capillare leaf cells showing chloroplasts.jpg', author: 'Des_Callaghan', license: 'CC BY-SA 4.0', modality: 'Light',
+    caption: 'Living leaf cells of the moss Bryum capillare. The pale lines between the cells are their walls; the green bodies are chloroplasts.' },
+  'elodea-cells': { commons: 'File:Chloroplasts - Microscopic view of Elodea canadensis.jpg', author: 'Juan Carlos Fonseca Mata', license: 'CC BY-SA 4.0', modality: 'Light',
+    caption: 'Leaf cells of the waterweed Elodea canadensis. Each brick-shaped cell is mostly vacuole, which is clear; the chloroplasts lie in the thin layer of cytoplasm around it.' },
+  'palisade-sem': { commons: 'File:Tobacco mesophyll cryofracture in electron microscopy 1.tif', author: 'Juan de Dios Franco Navarro', license: 'CC BY 4.0', modality: 'SEM',
+    caption: 'A tobacco leaf frozen and broken across, seen edge-on in the scanning electron microscope: the mesophyll cells stand packed between its two surfaces. Scale bar 100 µm.' },
+  'rough-er': { commons: 'File:Mammalian pancreatic tissue, nuclear pores and rough endoplasmic reticulum.jpg', author: 'Louisa Howard', license: 'Public domain', modality: 'TEM',
+    caption: 'A pancreatic acinar cell in thin section: parallel sheets of rough ER (left and top) beside the nucleus, whose envelope shows its pores. Scale bar 500 nm.' },
+  'club-cell-tem': { commons: 'File:Clara cell lung - TEM.jpg', author: 'Louisa Howard', license: 'Public domain', modality: 'TEM',
+    caption: 'A secretory (club) cell of the mammalian lung in thin section: the nucleus with its dark nucleolus at lower right, stacked rough ER above it and mitochondria at the left. Scale bar 500 nm.' },
+  'peroxisomes': { commons: 'File:Peroxisome in rat neonatal cardiomyocyte.jpg', author: 'Evgeniy Ukraine', license: 'CC BY-SA 4.0', modality: 'Fluorescence',
+    caption: 'Peroxisomes in rat heart muscle cells, stained for the peroxisomal membrane protein PMP70: hundreds of small dots in each cell.' },
+  'cell-membranes-tem': { commons: 'File:Desmosome - epithelial cell from mammalian lung tissue - TEM.jpg', author: 'Louisa Howard', license: 'Public domain', modality: 'TEM',
+    caption: 'The plasma membranes of two neighbouring lung epithelial cells running side by side, in thin section; the dense stretch is a desmosome that rivets them together. Scale bar 100 nm.' },
+  't4-shadowed': { commons: 'File:Bacteriophage.jpg', author: 'AFADadcADSasd', license: 'CC BY 4.0', modality: 'TEM',
+    caption: 'Two bacteriophage T4 particles, metal-shadowed for the electron microscope: the faceted head, the tail and the baseplate with its fibres.' },
+  't4-em': { commons: 'File:T4 phage EM.jpg', author: '7USSR7', license: 'CC BY 4.0', modality: 'TEM',
+    caption: 'One T4 particle in negative stain: head, striated tail sheath, baseplate and the long tail fibres spread out from it.' },
+  't4-field': { commons: 'File:Viruses-07-02932-g002B-T4.png', author: 'Šimoliūnas et al., Viruses (2015)', license: 'CC BY 4.0', modality: 'TEM',
+    caption: 'Purified phage particles in negative stain; those marked 1 are T4, beside a smaller phage (2). Scale bar 200 nm.' },
+  'sars2-virions': { commons: 'File:Novel Coronavirus SARS-CoV-2 (49640655213).jpg', author: 'NIAID', license: 'CC BY 2.0', modality: 'TEM',
+    caption: 'Three SARS-CoV-2 particles isolated from a patient (transmission electron micrograph, colourised): the spikes stand out from the envelope as a fringe.' },
+  'sars2-cell': { commons: 'File:Novel Coronavirus SARS-CoV-2 (49597020718).jpg', author: 'NIAID', license: 'CC BY 2.0', modality: 'TEM',
+    caption: 'SARS-CoV-2 particles (red, colourised) in thin section, in and around a cell: each is a membrane around a dense core of RNA and protein.' },
+  'aspergillus-tip': { commons: 'File:Localization of the Aspergillus nidulans myosin V (MyoE) at the hyphal growth tip - journal.pone.0031218.g004H.png', author: 'Taheri-Talesh N, Xiong Y, Oakley BR (2012)', license: 'CC BY 2.5', modality: 'Fluorescence',
+    caption: 'The tip of a living Aspergillus nidulans hypha. A myosin motor (green) and a vesicle protein (red) meet in the bright spot at the apex, the Spitzenkörper. Scale bar 5 µm.' },
+  'aspergillus-septate': { commons: 'File:Aspergillus hyphae in LPCB tease mount of culture microscopy.jpg', author: 'Ajay Kumar Chaurasiya', license: 'CC BY-SA 4.0', modality: 'Light',
+    caption: 'Branched hyphae of an Aspergillus, stained with lactophenol cotton blue: the cross-lines along each tube are septa.' },
+  'aspergillus-mycelium': { commons: 'File:Aspergillus niger hyphae.jpg', author: 'Y_tambe', license: 'CC BY-SA 3.0', modality: 'Light',
+    caption: 'A week-old colony of Aspergillus niger seen from the side: hyphae growing down into the agar (below the dark line) and up into the air, where some end in spore-bearing heads. Scale bar 100 µm.' },
   'yeast-nucleus': { commons: 'File:Bakers yeast cytoplasm-nucleus.jpg', author: 'Tgru001', license: 'CC0', modality: 'Freeze-fracture EM',
     caption: 'Platinum replica of a freeze-fractured baker\'s yeast cell, showing the nucleus in its cytoplasm. Scale bar 0.1 µm.' },
   'hela-nucleoli': { commons: 'File:HeLa-Tubulin-HSP60-Fibrillarin-DNA.jpg', author: 'GerryShaw (EnCor Biotechnology)', license: 'CC BY-SA 4.0', modality: 'Fluorescence',
     caption: 'Human HeLa cells: nucleoli (red, fibrillarin) inside each nucleus (purple, DNA), with microtubules in green and mitochondria in yellow.' },
   'yeast-vacuoles': { commons: 'File:Yeast cells with vacuoles marked with Vph1-GF (16193318289).jpg', author: 'Henderson et al., eLife (2014)', license: 'CC BY 2.0', modality: 'Fluorescence',
-    caption: 'Budding yeast whose vacuole membrane protein Vph1 is tagged with GFP: the bright compartments inside each cell are its vacuoles.' },
+    caption: 'Budding yeast whose vacuole membrane protein Vph1 is tagged with GFP, in a multi-colour image from a study of ageing mothers and their daughters: the vacuole is the large compartment that fills much of each cell.' },
   'hela-mitochondria': { commons: 'File:HeLa mtGFP.tif', author: 'Simon Troeder', license: 'CC BY 4.0', modality: 'Fluorescence',
     caption: 'Human HeLa cells expressing mitochondria-targeted GFP. Yeast mitochondria form the same kind of branched tubular network, just under the cortex.' },
   'yeast-wall': { commons: 'File:Bakers yeast wall-membrane.jpg', author: 'Tgru001', license: 'CC0', modality: 'Freeze-fracture EM',
@@ -31,8 +64,8 @@ const PICS: Record<string, Pic> = {
     caption: 'An animal cell in telophase: two daughter nuclei (blue) re-forming either side of the spindle midzone (green).' },
   'spectrin': { commons: 'File:Spectrin localization under the neuronal plasme membrane..jpg', author: 'GerryShaw (EnCor Biotechnology)', license: 'CC BY-SA 3.0', modality: 'Confocal',
     caption: 'αII-spectrin (green) lining the membrane of cultured rat neurons; DNA in blue. Red cells carry their own spectrin in the same kind of net under the membrane.' },
-  'rbc-light': { commons: 'File:Redbloodcells.jpg', author: 'Drs Noguchi, Rodgers and Schechter, NIDDK (NIH)', license: 'Public domain', modality: 'Light',
-    caption: 'Human red blood cells in the light microscope. Each is packed with haemoglobin; the paler centre is the thin dimple.' },
+  'rbc-light': { commons: 'File:Redbloodcells.jpg', author: 'Drs Noguchi, Rodgers and Schechter, NIDDK (NIH)', license: 'Public domain', modality: 'SEM',
+    caption: 'Human red blood cells in the scanning electron microscope: biconcave discs, each packed with haemoglobin, with the thin dimple at the centre.' },
   'rbc-sem-colour': { commons: 'File:Red White Blood cells.jpg', author: 'Electron Microscopy Facility, NCI-Frederick', license: 'Public domain', modality: 'SEM',
     caption: 'False-coloured scanning electron micrograph: a red blood cell with its central dimple, beside a platelet (yellow) and a white blood cell (blue).' },
   'rbc-sem': { commons: 'File:Red blood cells (2).jpg', author: 'Scootdive', license: 'CC BY-SA 3.0', modality: 'SEM',
@@ -110,16 +143,16 @@ const PICS: Record<string, Pic> = {
   'nucleoid-ellipsoid': { commons: 'File:Subhash nucleoid 11.png', author: 'Verma S. C., Qian Z., Adhya S. L. (PLoS Genet 2019)', license: 'CC BY 4.0', modality: 'Fluorescence',
     caption: 'The E. coli nucleoid. A: a drawing of its curved, lobed shape inside the cell. B: DNA density measured in a living cell from the fluorescence of the DNA-binding protein HU-mCherry, shown in section (blue low, red high). Scale 250 nm.' },
   'centrosome-golgi': { commons: 'File:Regrowth of microtubules from a centrosome and Golgi apparatus in vitro.jpg', author: 'Brian6122', license: 'CC BY 4.0', modality: 'Confocal',
-    caption: 'Microtubules (red) growing back from the centrosome, the bright pair of dots at the centre, and from the Golgi membranes gathered around it (spinning-disk confocal).' },
+    caption: 'Microtubules (red) growing back from the centrosome, the bright spot at the centre, and from the Golgi membranes gathered around it (spinning-disk confocal).' },
   'golgi-tem': { commons: 'File:GolgilTGNc.jpg', author: 'JeanOhm, from a micrograph by Louisa Howard', license: 'CC BY-SA 4.0', modality: 'TEM',
-    caption: 'Transmission electron micrograph of the Golgi apparatus of a human leukocyte: a curved stack of flat cisternae, with the trans-Golgi network (TGN) and its vesicles on the concave side. Scale bar 100 nm.' },
+    caption: 'Transmission electron micrograph of the Golgi apparatus of a human leukocyte: a cupped stack of flattened cisternae, the cis face on the outside of the curve, and the trans-Golgi network (TGN) with its vesicles on the hollow side. Scale bar 100 nm.' },
 };
 
 /** Which image each label shows, by "cell:Label name" first, then by name alone; a caption here replaces the image's own. */
 const LABELS: Record<string, string | { pic: string; caption: string }> = {
   // yeast
   'yeast:Nucleus': 'yeast-nucleus',
-  'yeast:Nucleolus': { pic: 'hela-nucleoli', caption: 'Nucleoli (red, fibrillarin) in human HeLa cells. In yeast the nucleolus is a single crescent against the nuclear envelope, marked by the same protein (called Nop1 there).' },
+  'yeast:Nucleolus': { pic: 'neuron-nucleoli', caption: 'Nucleoli (green dots, fibrillarin) inside the nuclei (blue) of human neuroblastoma cells. In yeast the nucleolus is a single crescent against the nuclear envelope, marked by the same protein (called Nop1 there).' },
   'yeast:Mitochondria': 'hela-mitochondria',
   'Vacuole': 'yeast-vacuoles',
   'Cell wall': 'yeast-wall',
@@ -133,7 +166,7 @@ const LABELS: Record<string, string | { pic: string; caption: string }> = {
   'yeast:Septum': { pic: 'yeast-sem', caption: 'Scanning electron micrograph of S. cerevisiae. The raised rings on the mothers are bud scars: what is left of the chitin septum after each daughter has gone. Scale bar 5 µm.' },
   // fission yeast
   'pombe:Nucleus': 'pombe-tem',
-  'pombe:Nucleolus': { pic: 'hela-nucleoli', caption: 'Nucleoli (red, fibrillarin) in human HeLa cells. The fission yeast nucleolus is marked by the same protein and fills one side of the nucleus.' },
+  'pombe:Nucleolus': { pic: 'neuron-nucleoli', caption: 'Nucleoli (green dots, fibrillarin) inside the nuclei (blue) of human neuroblastoma cells. The fission yeast nucleolus is marked by the same protein and fills one side of the nucleus.' },
   'pombe:Mitochondria': { pic: 'hela-mitochondria', caption: 'Human HeLa cells expressing mitochondria-targeted GFP. Fission yeast mitochondria are tubules of the same kind, laid along the long axis of the cell beside the microtubules.' },
   'pombe:Cell wall': { pic: 'pombe-calcofluor', caption: 'Fission yeast stained with calcofluor white, which binds cell wall: the outline of each cell is its wall, and the brightest wall is the new septum.' },
   'Vacuoles': { pic: 'yeast-vacuoles', caption: 'Vacuole membranes (Vph1-GFP) in budding yeast, which has one or a few large vacuoles per cell. Fission yeast has many small ones instead.' },
@@ -164,7 +197,7 @@ const LABELS: Record<string, string | { pic: string; caption: string }> = {
   'Spherical shape': 'rbc-spherocyte',
   // fibroblast
   'fibroblast:Nucleus': 'fibroblast-nucleus',
-  'fibroblast:Nucleolus': { pic: 'hela-nucleoli', caption: 'Nucleoli (red, fibrillarin) in human HeLa cells, several per nucleus (purple), as in fibroblasts.' },
+  'fibroblast:Nucleolus': { pic: 'neuron-nucleoli', caption: 'Nucleoli (green dots, fibrillarin) in human neuroblastoma cells: one to a few in each nucleus (blue), as in fibroblasts.' },
   'fibroblast:Mitochondria': 'fibroblast-mitochondria',
   'Nascent adhesion': 'focal-adhesions',
   'Focal adhesion': 'focal-adhesion-detail',
@@ -197,6 +230,57 @@ const LABELS: Record<string, string | { pic: string; caption: string }> = {
   'Axon stump': 'wallerian',
   'Retraction bulb': { pic: 'wallerian', caption: 'After a cut, the part of the axon cut off from the cell body fragments within two days (fluorescent axons, 37–44 h after injury). The part still joined to the soma survives and seals into a retraction bulb (not shown).' },
   'Growth cone': 'growth-cone',
+  // animal cell
+  'animal:Nucleus': 'club-cell-tem',
+  'animal:Nucleolus': 'club-cell-tem',
+  'animal:Mitochondria': { pic: 'hela-mitochondria', caption: 'Human HeLa cells expressing mitochondria-targeted GFP: the mitochondria of an animal cell are a branching network of tubes, not separate beans.' },
+  'Rough ER': 'rough-er',
+  'Lysosome': { pic: 'phagocytosis', caption: 'A macrophage engulfing a dead yeast cell (scanning electron micrograph). What a cell swallows ends up in a lysosome, where it is digested; the lysosomes themselves are inside and not visible here.' },
+  'Peroxisome': 'peroxisomes',
+  'Plasma membrane': 'cell-membranes-tem',
+  // plant cell
+  'Chloroplast': 'chloroplast-tem',
+  'Central vacuole': 'elodea-cells',
+  'plant:Cell wall': 'moss-chloroplasts',
+  'plant:Nucleus': { pic: 'club-cell-tem', caption: 'An animal cell in thin section (a secretory cell of the lung): its nucleus, with a dark nucleolus, at lower right. A plant nucleus is built the same way.' },
+  'plant:Rough ER': { pic: 'rough-er', caption: 'Rough ER in an animal cell (pancreas), in thin section: parallel ribosome-studded sheets beside the nucleus. Plant ER looks the same. Scale bar 500 nm.' },
+  'Golgi stack': { pic: 'golgi-tem', caption: 'A Golgi stack in an animal cell (a human white blood cell), in thin section: cupped, with a cis and a trans face. A plant cell has many small separate stacks of the same build.' },
+  'plant:Mitochondria': { pic: 'mitochondrion-cryo', caption: 'A single mitochondrion (from rat liver) reconstructed by electron tomography: the cristae are tubes and sacs that open into the inner membrane through narrow necks. Plant mitochondria are built the same way.' },
+  'plant:Peroxisome': { pic: 'peroxisomes', caption: 'Peroxisomes in animal cells (rat heart muscle), stained for a peroxisomal membrane protein. In a leaf cell they sit against the chloroplasts.' },
+  'Palisade cell': 'palisade-sem',
+  // Aspergillus hypha
+  'Hyphal tip': 'aspergillus-tip',
+  'Spitzenkörper': 'aspergillus-tip',
+  'aspergillus:Septum': 'aspergillus-septate',
+  'aspergillus:Nucleus': { pic: 'aspergillus-septate', caption: 'Septate hyphae of an Aspergillus (lactophenol cotton blue). Each stretch between two septa holds several nuclei, which this stain does not pick out.' },
+  'Woronin body': { pic: 'aspergillus-septate', caption: 'Septate hyphae of an Aspergillus (lactophenol cotton blue). The Woronin bodies sit beside the pore of each septum and are too small to see in the light microscope.' },
+  'aspergillus:Vacuole': { pic: 'yeast-vacuoles', caption: 'Vacuole membranes (Vph1-GFP) in budding yeast, another fungus. In a hypha the vacuoles are small near the tip and large further back.' },
+  'aspergillus:Mitochondria': { pic: 'hela-mitochondria', caption: 'Mitochondria as a network of tubes, here in human HeLa cells expressing mitochondria-targeted GFP. In a hypha the tubes lie along its length.' },
+  'aspergillus:Cell wall': 'aspergillus-mycelium',
+  // bacteriophage T4
+  'Head': 't4-shadowed',
+  'DNA genome': { pic: 't4-field', caption: 'Purified phages in negative stain; those marked 1 are T4. The DNA is packed inside each head and cannot be seen from outside. Scale bar 200 nm.' },
+  'Tail sheath': 't4-em',
+  'Tail tube': { pic: 't4-em', caption: 'A T4 particle in negative stain. The tube runs hidden inside the striated sheath, from the head to the baseplate.' },
+  'Baseplate': 't4-em',
+  'Long tail fibre': 't4-em',
+  'Fibre joint': 't4-shadowed',
+  // coronavirus
+  'Spike': 'sars2-virions',
+  'Envelope': 'sars2-virions',
+  'RNA genome': 'sars2-cell',
+  'Virion': 'sars2-cell',
+  // added with the ER, Golgi and microtubules of 2026-10-06
+  'Cortical ER': { pic: 'rough-er', caption: 'Rough ER sheets in an animal cell (pancreas), in thin section. A yeast has the same membrane system, most of it in a single layer against the plasma membrane. Scale bar 500 nm.' },
+  'Golgi cisterna': { pic: 'golgi-tem', caption: 'The Golgi of an animal cell (a human white blood cell): cisternae held together in a cupped stack. In baker\'s yeast the same cisternae lie scattered singly. Scale bar 100 nm.' },
+  'pombe:Golgi stack': { pic: 'golgi-tem', caption: 'A Golgi stack in an animal cell (a human white blood cell), in thin section. Fission yeast keeps small stacks of the same build. Scale bar 100 nm.' },
+  'Endoplasmic reticulum': 'rough-er',
+  'Smooth ER': { pic: 'axon-mitochondria', caption: 'Electron tomogram of a swelling on an axon (left) and its 3D model (right): smooth ER tubules (yellow, marked ER) thread between mitochondria (green), microtubules and vesicles.' },
+  'Microtubule': 'centrosome-golgi',
+  'aspergillus:Microtubule': { pic: 'pombe-timelapse', caption: 'Microtubules (green, tubulin-GFP) running the length of living fission yeast cells, another fungus. In a hypha they run the same way, toward the tip.' },
+  'Microtubules': 'growth-cone',
+  'Golgi outpost': { pic: 'golgi-tem', caption: 'A Golgi stack in the cell body of an animal cell (a human white blood cell). An outpost in a dendrite is a small stack of the same kind. Scale bar 100 nm.' },
+  'Golgi equivalent': { pic: 'golgi-tem', caption: 'A Golgi stack in an animal cell (a human white blood cell). A filamentous fungus has the same kind of cisternae, but single ones, not stacked. Scale bar 100 nm.' },
 };
 
 /** The micrograph for a label of a cell type, or undefined if it has none. */

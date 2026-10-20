@@ -122,6 +122,10 @@ fn clippedAway(rest: vec3f) -> bool {
     let s = fract(in.coord) * 32.0;
     base = mix(base, base * 0.7, smoothstep(0.5, 0.95, sin(s * 46.0)) * 0.5);
   }
+  if (isMat(in.mat, 18.0)) {
+    // grana: the stacks of thylakoids show as darker spots about half a micrometre across
+    base = mix(base, base * 0.55, smoothstep(0.52, 0.7, noise3(in.rest * um * 2.4)));
+  }
   if (isMat(in.mat, 12.0)) {
     // denser DNA is darker: the same wave that moves the surface
     base = base * (1.0 - 0.9 * nucleoidSwell(in.rest, F.params.x));

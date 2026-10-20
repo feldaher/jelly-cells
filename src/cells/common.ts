@@ -1,7 +1,7 @@
 // Small builders shared by the cell types.
 
 import { Mat, Prim, type Anatomy, type BodyPart, type Material, type Primitive, type TubeMotion, type Vec3 } from '../contracts';
-import { bodyBounds } from '../anatomy/sdf';
+import { bodyBounds, cellSdf, materialAt, primSdf } from '../anatomy/sdf';
 
 export const ell = (a: Vec3, b: Vec3, material: Material = Mat.Cytoplasm): Primitive => ({ kind: Prim.Ellipsoid, material, a, b, R: 0, r: 0 });
 export const cone = (a: Vec3, b: Vec3, R: number, r: number, material: Material = Mat.Cytoplasm): Primitive => ({ kind: Prim.Cone, material, a, b, R, r });
@@ -55,4 +55,69 @@ export function samplePoint(rand: () => number, lo: Vec3, hi: Vec3, ok: (p: Vec3
     if (ok(p)) return p;
   }
   return null;
+}
+
+/** The middle of a bowl: the point of its sheet on its axis. */
+export function bowlMid(p: Primitive): Vec3 {
+  const u = norm3(p.b);
+  return [p.a[0] + u[0] * p.R, p.a[1] + u[1] * p.R, p.a[2] + u[2] * p.R];
+}
+
+/** One curved sheet (see Prim.Bowl) of the given width, measured across its rim. */
+export function bowl(centre: Vec3, axis: Vec3, R: number, width: number, halfThickness: number, material: Material): Primitive {
+  const u = norm3(axis), s = Math.min(0.999, width / 2 / R);
+  return { kind: Prim.Bowl, material, a: centre, b: [u[0] * s, u[1] * s, u[2] * s], R, r: halfThickness };
+}
+
+/**
+ * A Golgi ribbon as electron tomography shows it in mammalian cells: stacks of curved, flattened
+ * cisternae standing side by side, joined at each level into one ribbon-like organelle (Ladinsky
+ * et al. 1999, J Cell Biol 144:1135; Marsh et al. 2001, PNAS 98:2399).
+ *
+ * Every cisterna is part of a sphere about `centre`, so each stack is cupped and the ribbon as a
+ * whole curls around that point. The stacks stand along an arc in the plane normal to `normal`,
+ * centred on the direction `toward`; neighbours overlap a little at every level, which stands
+ * for the bridges that join cisternae of equal rank. Level 0 is the innermost (the hollow, trans
+ * side in the micrograph on the label card); the last is the cis face.
+ */
+export function golgiRibbon(centre: Vec3, toward: Vec3, normal: Vec3, o: { inner: number; spacing: number; halfThickness: number; width: number; stacks: number; levels?: number }): Primitive[] {
+  const levels = o.levels ?? 7, n = norm3(normal);
+  // `toward` made perpendicular to the normal, and the third axis of the arc's plane
+  const dot = toward[0] * n[0] + toward[1] * n[1] + toward[2] * n[2];
+  const e1 = norm3([toward[0] - dot * n[0], toward[1] - dot * n[1], toward[2] - dot * n[2]]);
+  const e2: Vec3 = [n[1] * e1[2] - n[2] * e1[1], n[2] * e1[0] - n[0] * e1[2], n[0] * e1[1] - n[1] * e1[0]];
+  const outer = o.inner + (levels - 1) * o.spacing;
+  // neighbours overlap even at the outermost level, where a cisterna of this width spans the smallest angle
+  const step = 2 * Math.asin(Math.min(0.999, o.width / 2 / outer)) * 0.92;
+  const out: Primitive[] = [];
+  for (let k = 0; k < o.stacks; k++) {
+    const t = (k - (o.stacks - 1) / 2) * step, c = Math.cos(t), s = Math.sin(t);
+    const axis: Vec3 = [e1[0] * c + e2[0] * s, e1[1] * c + e2[1] * s, e1[2] * c + e2[2] * s];
+    for (let i = 0; i < levels; i++) out.push(bowl(centre, axis, o.inner + i * o.spacing, o.width, o.halfThickness, Mat.Golgi));
+  }
+  return out;
+}
+
+/**
+ * A test for free cytoplasm: `free(margin)(p)` is true where p lies at least `margin` inside the
+ * wall (or membrane) and at least `margin` clear of every organelle placed so far.
+ */
+export function freeCytoplasm(an: Anatomy, organelles: Primitive[] = an.organelles): (margin: number) => (p: Vec3) => boolean {
+  return (margin) => (p) => cellSdf(an, p[0], p[1], p[2]) < -(an.wallThickness + margin) && organelles.every((q) => primSdf(q, p[0], p[1], p[2]) > margin);
+}
+
+/** A straight line of points from `from` along `dir`, `step` apart, for as long as `ok` holds (at most `maxLength`). */
+export function ray(from: Vec3, dir: Vec3, maxLength: number, step: number, ok: (p: Vec3) => boolean): Vec3[] {
+  const d = norm3(dir), pts: Vec3[] = [from];
+  for (let s = step; s <= maxLength + 1e-9; s += step) {
+    const p: Vec3 = [from[0] + d[0] * s, from[1] + d[1] * s, from[2] + d[2] * s];
+    if (!ok(p)) break;
+    pts.push(p);
+  }
+  return pts;
+}
+
+/** The first of `candidates` that lies in `material` (labels must point at what they name); the first of all if none does. */
+export function anchorIn(an: Anatomy, candidates: Vec3[], material: Material): Vec3 {
+  return candidates.find((p) => materialAt(an, p[0], p[1], p[2]) === material) ?? candidates[0];
 }

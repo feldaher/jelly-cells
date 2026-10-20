@@ -4,7 +4,7 @@
 import { Mat, type Anatomy, type BodyPart, type CellType, type Label, type Stage, type Vec3 } from '../contracts';
 import { rng } from '../math/mat3';
 import { cellSdf, primSdf } from '../anatomy/sdf';
-import { add3, addTubule, cone, ell, finish, lerp3, norm3, samplePoint, scale3, union, wander } from './common';
+import { add3, addTubule, anchorIn, bowlMid, cone, ell, finish, golgiRibbon, lerp3, norm3, samplePoint, scale3, union, wander } from './common';
 
 /** How far along activation each stage is: process length, thickness, branching, soma size, lysosomes. */
 const PLAN = [
@@ -84,6 +84,13 @@ function build(seed = 7, stage = 0): Anatomy {
     const start = samplePoint(rand, lo, hi, ok);
     if (start) addTubule(an, wander(rand, start, [rand() - 0.5, 0, rand() - 0.5], 4, 0.4, ok), 0.1, Mat.Mitochondrion);
   }
+  // Centrosome and Golgi: microglia have little cytoplasm, and a small Golgi ribbon beside the
+  // nucleus. Three stacks are drawn, with four of their cisternae, wherever the soma has room.
+  const mtoc: Vec3 = [nc[0] + 1.0 + 0.14, nc[1] + 0.05, nc[2]];
+  if (primSdf(somaEll, ...mtoc) < -0.3) {
+    o.push(ell(mtoc, [0.06, 0.06, 0.06], Mat.Spindle));
+    o.push(...golgiRibbon(mtoc, [1, 0.15, 0.1], [0, 1, 0], { inner: 0.34, spacing: 0.045, halfThickness: 0.012, width: 0.5, stacks: 3, levels: 4 }).filter((b) => primSdf(somaEll, ...bowlMid(b)) < -0.15));
+  }
   return an;
 }
 
@@ -112,6 +119,11 @@ function labels(an: Anatomy): Label[] {
   ];
   if (an.stage <= 1) labels.push({ id: 'tip', name: 'Process tip', anchor: lerp3(tip.a, tip.b, 0.85), size: '< 1 µm',
     blurb: 'The tips carry the purinergic receptor P2Y12, which senses ATP and ADP leaking from damaged cells: the "come here" signal. Without it, processes still move but cannot turn toward an injury (Haynes et al. 2006).' });
+  const cisternae = an.organelles.filter((x) => x.material === Mat.Golgi), mtoc = an.organelles.find((x) => x.material === Mat.Spindle);
+  if (cisternae.length) labels.push({ id: 'golgi', name: 'Golgi apparatus', material: Mat.Golgi, anchor: anchorIn(an, cisternae.map(bowlMid), Mat.Golgi), size: 'cisternae ≈ 1 µm wide',
+    blurb: 'A small ribbon of stacked, curved cisternae beside the nucleus. It makes the receptors on the processes and loads the lysosomes with their enzymes; it grows as the cell activates.' });
+  if (mtoc) labels.push({ id: 'centrosome', name: 'Centrosome', material: Mat.Spindle, anchor: mtoc.a, size: '',
+    blurb: 'Two centrioles from which the microtubules radiate into the processes.' });
   return labels;
 }
 
@@ -129,6 +141,7 @@ export const microglia: CellType = {
   key: [
     { material: Mat.Wall, name: 'Cortex' }, { material: Mat.Cytoplasm, name: 'Cytoplasm' },
     { material: Mat.Nucleus, name: 'Nucleus' }, { material: Mat.Nucleolus, name: 'Nucleolus' },
+    { material: Mat.Golgi, name: 'Golgi apparatus' }, { material: Mat.Spindle, name: 'Centrosome' },
     { material: Mat.Lysosome, name: 'Lysosomes' }, { material: Mat.Mitochondrion, name: 'Mitochondria' },
   ],
   stiffness: { [Mat.Wall]: 1.5, [Mat.Nucleus]: 2.5, [Mat.Nucleolus]: 2.5, [Mat.Lysosome]: 1.5 },

@@ -9,6 +9,7 @@ import { Mat, Prim, type Anatomy, type CellType, type Ellipsoid, type Label, typ
 import { rng } from '../math/mat3';
 import { cellSdf, materialAt, primSdf } from '../anatomy/sdf';
 import { addTubule, cone, ell, finish, samplePoint, union } from './common';
+import { addTubule, anchorIn, bowl, bowlMid, cone, ell, finish, norm3, ray, samplePoint, union } from './common';
 import { buddingNucleusRadius } from './cycle/budding';
 import { ellipsoidVolume } from './cycle/geometry';
 import { yeastOsmotic } from './stress/osmotic';
@@ -117,6 +118,9 @@ const PLAN: StagePlan[] = [
     neck: { r: 0.42, a: 2.2, b: 2.9 },
   },
 ];
+
+/** Half-thickness of an ER sheet as drawn (µm): West et al. 2011 measure cisternae about 36 nm thick. */
+const ER_HALF = 0.018;
 
 export const STAGES: Stage[] = [
   { name: 'G1', title: 'Unbudded', blurb: 'The cell grows and decides whether to divide. There is no bud yet; the bud scars show where earlier daughters left. The nucleolus sits on the far side of the nucleus from the spindle pole body.' },
@@ -229,6 +233,35 @@ export function buildYeast(seed = 7, stage = 2): Anatomy {
     for (let i = 0; i < count; i++) {
       const c = samplePoint(grand, [e.centre[0] - e.radii[0], e.centre[1] - e.radii[1], e.centre[2] - e.radii[2]], [e.centre[0] + e.radii[0], e.centre[1] + e.radii[1], e.centre[2] + e.radii[2]], clear);
       if (c) add(Prim.Ellipsoid, Mat.Condensate, c, [gr, gr, gr]);
+  // Endoplasmic reticulum and Golgi, placed with their own random sequence so that everything
+  // above stays where it was. The ER of budding yeast is the nuclear envelope plus a peripheral
+  // part: tubules, a few cisternae in the cytoplasm, and a large domain of tubules and fenestrated
+  // sheets lying against the plasma membrane (West et al. 2011, J Cell Biol 193:333). Drawn: patches
+  // of that cortical sheet, and two tubules joining it to the nuclear envelope.
+  const erRand = rng(seed + 311);
+  const direction = (): Vec3 => norm3([(erRand() - 0.5) * 0.9, erRand() - 0.5, erRand() - 0.5]);
+  const cortical = (e: Ellipsoid, count: number) => {
+    const R = Math.min(e.radii[1], e.radii[2]) - an.wallThickness - 0.06;
+    if (R < 0.6) return;
+    for (let i = 0; i < count; i++) organelles.push(bowl(e.centre, direction(), R, Math.min(1.5 * R, 1.4 + erRand() * 0.8), ER_HALF, Mat.ER));
+  };
+  cortical(mother, 5);
+  cortical(bud, Math.round((5 * vBud) / vMother));
+  const clearOfAll = (margin: number) => (p: Vec3) => cellSdf(an, p[0], p[1], p[2]) < -(an.wallThickness + margin) && organelles.every((q) => primSdf(q, p[0], p[1], p[2]) > margin);
+  const nucleus0 = plan.nuclei[0].c, nr0 = nucleusR[0][0];
+  for (const d of [norm3([-0.2, 0.7, 0.7]), norm3([-0.5, -0.6, 0.6])]) {
+    const from: Vec3 = [nucleus0[0] + d[0] * (nr0 + 0.04), nucleus0[1] + d[1] * (nr0 + 0.04), nucleus0[2] + d[2] * (nr0 + 0.04)];
+    const pts = ray(from, d, 3, 0.3, (p) => cellSdf(an, p[0], p[1], p[2]) < -(an.wallThickness + 0.1) && organelles.every((q) => q.material === Mat.ER || q.material === Mat.Nucleus || primSdf(q, p[0], p[1], p[2]) > 0.05));
+    addTubule(net, pts, 0.03, Mat.ER);
+  }
+  // Golgi: in this yeast the cisternae are not stacked but scattered singly through the cytoplasm
+  // (Rossanese et al. 1999, J Cell Biol 145:69). Their number and size here are a drawing.
+  const golgiRand = rng(seed + 523);
+  for (const [e, count] of [[mother, 9], [bud, Math.round((9 * vBud) / vMother)]] as [Ellipsoid, number][]) {
+    for (let i = 0; i < count; i++) {
+      const c = samplePoint(golgiRand, [e.centre[0] - e.radii[0], e.centre[1] - e.radii[1], e.centre[2] - e.radii[2]], [e.centre[0] + e.radii[0], e.centre[1] + e.radii[1], e.centre[2] + e.radii[2]], clearOfAll(0.24));
+      const axis = norm3([golgiRand() - 0.5, golgiRand() - 0.5, golgiRand() - 0.5]);
+      if (c) add(Prim.Disc, Mat.Golgi, c, [axis[0] * 0.018, axis[1] * 0.018, axis[2] * 0.018], 0.19, 0);
     }
   }
 
@@ -299,6 +332,11 @@ function yeastLabels(an: Anatomy): Label[] {
   const granule = all(Mat.Condensate)[0];
   if (granule) labels.push({ id: 'granule', name: 'Stress granule', material: Mat.Condensate, anchor: granule.a, size: `drawn ${(2 * CONDENSATE.radiusUm).toFixed(2)} µm across`,
     blurb: 'Poly(A)-binding protein Pab1 and other RNA-binding proteins, gathered with mRNA into a solid-like assembly by severe heat (46 °C). The granules form within minutes; once the heat is gone the disaggregase Hsp104 takes them apart again, within about an hour, and the proteins are reused, not degraded (Wallace et al. 2015; Cherkasov et al. 2013). At 42 °C the same proteins assemble into particles too small to see. The number and size of the granules drawn here are not measured values.' });
+  const erSheets = all(Mat.ER).filter((o) => o.kind === Prim.Bowl), cisternae = all(Mat.Golgi);
+  if (erSheets.length) labels.push({ id: 'er', name: 'Cortical ER', material: Mat.ER, anchor: anchorIn(an, erSheets.map(bowlMid), Mat.ER), size: 'sheets ≈ 36 nm thick',
+    blurb: 'The endoplasmic reticulum of yeast is the nuclear envelope plus a peripheral network of tubules and sheets, most of it lying flat against the plasma membrane and pierced by holes (West et al. 2011). A few tubules join it to the nuclear envelope. It is pulled into the bud early, so the daughter inherits hers. Only patches of the cortical sheet and two tubules are drawn.' });
+  if (cisternae.length) labels.push({ id: 'golgi', name: 'Golgi cisterna', material: Mat.Golgi, anchor: anchorIn(an, cisternae.map((o) => o.a), Mat.Golgi), size: 'drawn ≈ 0.4 µm across',
+    blurb: 'In baker\'s yeast the Golgi is not a stack. Its cisternae lie scattered singly through the cytoplasm, each maturing from an early to a late compartment over a few minutes; the stacked Golgi of other yeasts and of animal cells is the same machinery kept together (Rossanese et al. 1999). The number and size drawn are not measured values.' });
   if (septum) labels.push({ id: 'septum', name: 'Septum', material: Mat.Septum, anchor: [septum.a[0], septum.a[1], septum.a[2] + septum.r + 0.04], size: '',
     blurb: 'A plate of chitin that grows inward behind the ring and seals the neck. What is left of it on the mother is the bud scar.' });
   return labels;
@@ -321,6 +359,7 @@ export const yeast: CellType = {
     { material: Mat.Wall, name: 'Cell wall' }, { material: Mat.Cytoplasm, name: 'Cytoplasm' },
     { material: Mat.Nucleus, name: 'Nucleus' }, { material: Mat.Nucleolus, name: 'Nucleolus' },
     { material: Mat.Vacuole, name: 'Vacuole' }, { material: Mat.Mitochondrion, name: 'Mitochondria' },
+    { material: Mat.ER, name: 'ER' }, { material: Mat.Golgi, name: 'Golgi cisternae' },
     { material: Mat.Spindle, name: 'Spindle' }, { material: Mat.Septin, name: 'Septin ring' },
     { material: Mat.Ring, name: 'Myosin ring' }, { material: Mat.Septum, name: 'Septum' }, { material: Mat.BudScar, name: 'Bud scars' },
     { material: Mat.Condensate, name: 'Stress granules' },

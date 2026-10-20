@@ -50,7 +50,10 @@ describeFeature(feature, ({ Scenario, ScenarioOutline }) => {
     });
     Then('every organelle is centred inside the cell or on its surface', () => {
       for (const a of mids) for (const o of a.organelles) {
-        const c = o.kind === Prim.Capsule || o.kind === Prim.Cone ? [0, 1, 2].map((k) => (o.a[k] + o.b[k]) / 2) as [number, number, number] : o.a;
+        // the middle of the part: of its axis for a tube, of its sheet for a bowl
+        const l = Math.hypot(...o.b) || 1;
+        const c = o.kind === Prim.Capsule || o.kind === Prim.Cone ? [0, 1, 2].map((k) => (o.a[k] + o.b[k]) / 2) as [number, number, number]
+          : o.kind === Prim.Bowl ? [0, 1, 2].map((k) => o.a[k] + (o.b[k] / l) * o.R) as [number, number, number] : o.a;
         const size = o.kind === Prim.Ellipsoid ? Math.min(...o.b) : o.r;
         expect(cellSdf(a, ...c), `stage ${a.stage.toFixed(2)} material ${o.material}`).toBeLessThanOrEqual(size);
       }

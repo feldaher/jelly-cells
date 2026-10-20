@@ -3,6 +3,7 @@ import { expect } from 'vitest';
 import wgsl from '../src/render/shaders/common.wgsl?raw';
 import { cellType } from '../src/cells';
 import { primSdf } from '../src/anatomy/sdf';
+import { bowlMesh } from '../src/mesh/organelleMesh';
 import { Mat, Prim, type Anatomy, type Primitive } from '../src/contracts';
 import { cellVolume, ellipsoidVol, of, tubulesOf } from './measure';
 
@@ -34,6 +35,34 @@ describeFeature(feature, ({ Scenario }) => {
     And('the shader evaluates the same primitive kind', () => {
       expect(wgsl).toMatch(/kind == 4u/);
     });
+  });
+
+  Scenario('A bowl primitive is a curved sheet', ({ Given, When, Then, And }) => {
+    let b: Primitive;
+    const at = (deg: number, r: number): [number, number, number] => [1 + r * Math.cos((deg * Math.PI) / 180), r * Math.sin((deg * Math.PI) / 180), 0];
+    Given('a bowl of radius 2, half-angle 30 degrees and half-thickness 0.05 about the x axis', () => {
+      b = { kind: Prim.Bowl, material: Mat.Golgi, a: [1, 0, 0], b: [0.5, 0, 0], R: 2, r: 0.05 };
+    });
+    When('its distance field is sampled', () => undefined);
+    Then('points on the curved sheet are inside, 0.05 from either face', () => {
+      expect(primSdf(b, ...at(0, 2))).toBeCloseTo(-0.05, 6);
+      expect(primSdf(b, ...at(20, 2))).toBeCloseTo(-0.05, 6);
+      expect(primSdf(b, ...at(20, 2.03))).toBeCloseTo(-0.02, 6);
+      expect(primSdf(b, 1 + 2 * Math.cos(0.4), 0, 2 * Math.sin(0.4))).toBeCloseTo(-0.05, 6);
+    });
+    And('the centre of curvature, the far side of the sphere and points past the rim are outside', () => {
+      expect(primSdf(b, 1, 0, 0)).toBeCloseTo(1.95, 6);
+      expect(primSdf(b, ...at(180, 2))).toBeGreaterThan(1);
+      // past the rim the distance is to the rim circle: 10 degrees of arc at radius 2, less the half-thickness
+      expect(primSdf(b, ...at(40, 2))).toBeCloseTo(2 * 2 * Math.sin((5 * Math.PI) / 180) - 0.05, 6);
+      expect(primSdf(b, ...at(0, 2.3))).toBeCloseTo(0.25, 6);
+    });
+    And('its mesh lies on its own surface', () => {
+      const m = bowlMesh(b.a, [1, 0, 0], 0.5, b.R, b.r);
+      expect(m.idx.length).toBeGreaterThan(100);
+      for (let i = 0; i < m.pos.length; i += 3) expect(Math.abs(primSdf(b, m.pos[i], m.pos[i + 1], m.pos[i + 2]))).toBeLessThan(2e-3);
+    });
+    And('the shader evaluates the same primitive kind as the bowl', () => { expect(wgsl).toMatch(/kind == 5u/); });
   });
 
   Scenario('The budding yeast nucleus keeps 7 percent of the cell volume', ({ Given, When, Then }) => {

@@ -9,8 +9,14 @@ import { rbc } from './rbc';
 import { fibroblast } from './fibroblast';
 import { microglia } from './microglia';
 import { neuron } from './neuron';
+import { animal } from './animal';
+import { plant } from './plant';
+import { aspergillus } from './aspergillus';
+import { phage } from './phage';
+import { coronavirus } from './coronavirus';
 
-export const CELL_TYPES: CellType[] = [yeast, pombe, ecoli, rbc, fibroblast, microglia, neuron];
+// New entries go at the end: the shaders know the first seven by their place in this list.
+export const CELL_TYPES: CellType[] = [yeast, pombe, ecoli, rbc, fibroblast, microglia, neuron, animal, plant, aspergillus, phage, coronavirus];
 
 export function cellType(id: CellTypeId): CellType {
   const t = CELL_TYPES.find((c) => c.id === id);

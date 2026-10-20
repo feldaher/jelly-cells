@@ -5,10 +5,13 @@
 // polarises (Kupfer et al. 1982), with the nucleus pulled rearward (Gomes et al. 2005);
 // adhesion lengths follow Goffin et al. 2006.
 
-import { Mat, Prim, type Anatomy, type BodyPart, type CellType, type Label, type Stage, type Vec3 } from '../contracts';
+import { Mat, type Anatomy, type BodyPart, type CellType, type Label, type Stage, type Vec3 } from '../contracts';
 import { rng } from '../math/mat3';
 import { cellSdf, materialAt, primSdf } from '../anatomy/sdf';
-import { addTubule, cone, ell, finish, lerp3, union, wander } from './common';
+import { addTubule, anchorIn, bowl, bowlMid, cone, ell, finish, golgiRibbon, lerp3, ray, union, wander } from './common';
+
+/** µm per sim unit. */
+const UM = 4;
 
 export const STAGES: Stage[] = [
   { name: 'Round', title: 'Rounded', blurb: 'Just landed in the wound bed: round, with a thin skirt of membrane feeling for the matrix. Only small nascent adhesions so far.' },
@@ -90,11 +93,15 @@ function build(seed = 7, stage = 2): Anatomy {
     const edge = 1 / Math.hypot(cx / plan.nucleus.r[0], cz / plan.nucleus.r[2]);
     return [nc[0] + cx * (edge + out), gy, nc[2] + cz * (edge + out)];
   };
-  o.push(ell(beside(plan.golgi, 0.16), [0.08, 0.08, 0.08], Mat.Spindle));
-  // A ribbon of three stacks, each of seven flat cisternae (Ladinsky et al. 1999, J Cell Biol 144:1135).
-  // A real stack is about 1 µm wide; drawn 1.6 µm so that it can be seen.
-  const golgi = [-0.36, 0, 0.36].map((d) => beside(plan.golgi + d, 0.5));
-  for (const g of golgi) for (let i = 0; i < 7; i++) o.push({ kind: Prim.Disc, material: Mat.Golgi, a: [g[0], g[1] + (i - 3) * 0.034, g[2]], b: [0, 0.011, 0], R: 0.2, r: 0 });
+  const mtoc = beside(plan.golgi, 0.16);
+  o.push(ell(mtoc, [0.08, 0.08, 0.08], Mat.Spindle));
+  // The Golgi: one ribbon of stacks of seven curved cisternae, joined level by level (Ladinsky et al.
+  // 1999, J Cell Biol 144:1135; Marsh et al. 2001, PNAS 98:2399), curled around the centrosome on the
+  // side away from the nucleus, in the plane of the flat cell. A stack is about 1 µm wide and 0.3 µm
+  // thick; the cisternae are drawn twice as far apart so that they can be told apart.
+  const ribbon = golgiRibbon(mtoc, [Math.cos(plan.golgi), 0, Math.sin(plan.golgi)], [0, 1, 0], { inner: 1.5 / UM, spacing: 0.09 / UM, halfThickness: 0.025 / UM, width: 1.1 / UM, stacks: 5 });
+  o.push(...ribbon);
+  const golgi = ribbon.map(bowlMid);
 
   // Actin fibres along the base, anchored in adhesions at their ends.
   const yF = 0.18;
@@ -145,13 +152,33 @@ function build(seed = 7, stage = 2): Anatomy {
   for (const [a, b] of fibres) addTubule(an, [a, lerp3(a, b, 0.33), lerp3(a, b, 0.66), b], big ? 0.1 : 0.07, Mat.Actin);
 
   // Mitochondria wander through the cytoplasm around the nucleus.
-  const ok = (p: Vec3) => cellSdf(an, ...p) < -0.28 && primSdf(nucleus, ...p) > 0.12 && golgi.every((g) => Math.hypot(p[0] - g[0], p[2] - g[2]) > 0.45);
+  const ok = (p: Vec3) => cellSdf(an, ...p) < -0.28 && primSdf(nucleus, ...p) > 0.12 && golgi.every((g) => Math.hypot(p[0] - g[0], p[2] - g[2]) > 0.3);
   for (let i = 0; i < 9; i++) {
     const ang = (i / 9) * Math.PI * 2 + rand() * 0.4;
     const r = plan.flatMito ? 1.9 : 1.55;
     const start: Vec3 = [nc[0] + Math.cos(ang) * r, plan.flatMito ? plan.midY : nc[1] - 0.2, nc[2] + Math.sin(ang) * r * 0.8];
     if (!ok(start)) continue;
     addTubule(an, wander(rand, start, [Math.cos(ang), 0, Math.sin(ang)], 5, 0.45, ok, plan.flatMito), 0.1, Mat.Mitochondrion);
+  }
+
+  // Microtubules and ER, with their own random sequence so that everything above stays where it was.
+  const extra = rng(an.seed + 211);
+  // Microtubules: 25 nm tubes radiating from the centrosome toward the cell edge (drawn 0.16 µm thick).
+  const inCell = (p: Vec3) => cellSdf(an, ...p) < -0.12 && primSdf(nucleus, ...p) > 0.08;
+  for (let i = 0; i < 12; i++) {
+    const t = (i / 12) * 2 * Math.PI + (extra() - 0.5) * 0.25;
+    const pts = ray(mtoc, [Math.cos(t), 0, Math.sin(t)], 9, 0.5, inCell);
+    if (pts.length > 2) addTubule(an, pts, 0.02, Mat.Spindle);
+  }
+  // ER: two sheets against the nucleus, on the side away from the Golgi, and the network of
+  // tubules that fills the thin lamella of a spread cell (drawn 0.16 µm thick; real tubules ≈ 50 nm).
+  const away = plan.golgi + Math.PI, nucleusEdge = 1 / Math.hypot(Math.cos(away) / plan.nucleus.r[0], Math.sin(away) / plan.nucleus.r[2]);
+  for (let i = 0; i < 2; i++) o.push(bowl(nc, [Math.cos(away), 0, Math.sin(away)], nucleusEdge + 0.1 + 0.09 * i, 1.7 * plan.nucleus.r[1], 0.012, Mat.ER));
+  for (let i = 0; i < 9; i++) {
+    const ang = (i / 9) * Math.PI * 2 + extra() * 0.5, r = 1.2 + extra() * 0.9;
+    const start: Vec3 = [nc[0] + Math.cos(ang) * r, gy, nc[2] + Math.sin(ang) * r];
+    if (!inCell(start)) continue;
+    addTubule(an, wander(extra, start, [Math.cos(ang), 0, Math.sin(ang)], 6, 0.4, inCell, true), 0.02, Mat.ER);
   }
   return an;
 }
@@ -180,14 +207,18 @@ function labels(an: Anatomy): Label[] {
         : 'Integrin clusters that anchor the cell to the extracellular matrix. They grow under tension: a mechanosensing hub (talin, vinculin, FAK).' },
     { id: 'mito', name: 'Mitochondria', material: Mat.Mitochondrion, anchor: mitoAt, size: '≈ 0.5 µm thick',
       blurb: 'Spread through the cytoplasm, powering the myosin motors that keep the fibres under tension.' },
+    { id: 'er', name: 'Endoplasmic reticulum', material: Mat.ER, anchor: anchorIn(an, an.tubules.filter((t) => t.material === Mat.ER).flatMap((t) => t.points), Mat.ER), size: 'tubules ≈ 50 nm thick, drawn thicker',
+      blurb: 'One continuous membrane system: sheets studded with ribosomes close to the nucleus, where collagen and other matrix proteins are made, and a lace of tubules spreading through the thin edge of the cell. Only two sheets and a few tubules are drawn.' },
+    { id: 'mt', name: 'Microtubule', material: Mat.Spindle, anchor: anchorIn(an, an.tubules.filter((t) => t.material === Mat.Spindle).map((t) => t.points[Math.min(3, t.points.length - 1)]), Mat.Spindle), size: '25 nm thick, drawn thicker',
+      blurb: 'Tubes of tubulin growing out from the centrosome to the cell edge. Vesicles from the Golgi travel along them to the front of a crawling cell, and they tell the rear from the front.' },
   ];
   const golgi = an.organelles.find((x) => x.material === Mat.Golgi)!, mtoc = an.organelles.find((x) => x.material === Mat.Spindle)!;
   const polarised = an.stage >= 2;
   labels.push(
-    { id: 'golgi', name: 'Golgi apparatus', material: Mat.Golgi, anchor: golgi.a, size: '',
+    { id: 'golgi', name: 'Golgi apparatus', material: Mat.Golgi, anchor: bowlMid(golgi), size: 'cisternae ≈ 1 µm wide',
       blurb: polarised
-        ? 'A ribbon of stacks, each of about seven flat cisternae (Ladinsky et al. 1999), that sort and ship membrane and matrix proteins. In a cell at a wound edge the Golgi turns to face the wound within minutes (Kupfer et al. 1982), so that new membrane and collagen are delivered to the front.'
-        : 'A ribbon of stacks, each of about seven flat cisternae (Ladinsky et al. 1999), that sort and ship membrane and matrix proteins, gathered around the centrosome on one side of the nucleus. Which side is arbitrary until the cell picks a direction.' },
+        ? 'One ribbon of stacks, each of about seven curved cisternae bridged to its neighbours (Ladinsky et al. 1999; Marsh et al. 2001), that sorts and ships membrane and matrix proteins. In a cell at a wound edge the Golgi turns to face the wound within minutes (Kupfer et al. 1982), so that new membrane and collagen are delivered to the front.'
+        : 'One ribbon of stacks, each of about seven curved cisternae bridged to its neighbours (Ladinsky et al. 1999; Marsh et al. 2001), that sorts and ships membrane and matrix proteins, curled around the centrosome on one side of the nucleus. Which side is arbitrary until the cell picks a direction.' },
     { id: 'centrosome', name: 'Centrosome', material: Mat.Spindle, anchor: mtoc.a, size: '',
       blurb: polarised
         ? 'The microtubule-organising centre. It stays near the middle of the cell while the nucleus is pulled rearward by actin flowing back from the leading edge: that is how it comes to lie in front of the nucleus (Gomes et al. 2005).'
@@ -213,7 +244,7 @@ export const fibroblast: CellType = {
   name: 'Fibroblast',
   title: ['Fibroblast.'],
   tagline: ['Flat, spread and pulling.', 'The cell that closes wounds.', 'Cut it to find its fibres.'],
-  umPerUnit: 4,
+  umPerUnit: UM,
   build,
   labels,
   stages: STAGES,
@@ -224,7 +255,7 @@ export const fibroblast: CellType = {
     { material: Mat.Nucleus, name: 'Nucleus' }, { material: Mat.Nucleolus, name: 'Nucleolus' },
     { material: Mat.Actin, name: 'Stress fibres' }, { material: Mat.Adhesion, name: 'Focal adhesions' },
     { material: Mat.Mitochondrion, name: 'Mitochondria' }, { material: Mat.Golgi, name: 'Golgi apparatus' },
-    { material: Mat.Spindle, name: 'Centrosome' },
+    { material: Mat.Spindle, name: 'Centrosome, microtubules' }, { material: Mat.ER, name: 'ER' },
   ],
   stiffness: { [Mat.Wall]: 1.5, [Mat.Nucleus]: 3, [Mat.Nucleolus]: 3, [Mat.Actin]: 5, [Mat.Adhesion]: 3 },
   camera: { dist: 25, yaw: -0.35, pitch: 0.8 },

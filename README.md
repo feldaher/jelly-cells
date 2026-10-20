@@ -1,16 +1,21 @@
 # Jelly Cells (Biology Studies No. 010)
 
-Cells as soft bodies. Grab them, stretch them, give them a nudge, and cut them open with a knife to see what is inside. Seven specimens are in the dropdown:
+Cells as soft bodies. Grab them, stretch them, give them a nudge, and cut them open with a knife to see what is inside. Twelve specimens are in the dropdown: ten cells and two viruses.
 
 | Cell | Inside |
 |---|---|
-| **Budding yeast** | cell wall, nucleus + nucleolus, spindle, vacuoles, mitochondrial network, septin ring, myosin ring, septum, bud scars |
-| **Fission yeast** | cell wall, nucleus + nucleolus, microtubule bundles and spindle, mitochondria, many small vacuoles, contractile ring, septum, birth scar |
+| **Budding yeast** | cell wall, nucleus + nucleolus, spindle, vacuoles, mitochondrial network, cortical ER, scattered Golgi cisternae, septin ring, myosin ring, septum, bud scars |
+| **Fission yeast** | cell wall, nucleus + nucleolus, microtubule bundles and spindle, mitochondria, many small vacuoles, cortical ER, small Golgi stacks, contractile ring, septum, birth scar |
 | **E. coli** | envelope, nucleoid, ribosome-rich cytoplasm, Z ring, polar chemoreceptor arrays; no organelles |
 | **Red blood cell** | biconcave disc: membrane skeleton and haemoglobin, no nucleus |
-| **Fibroblast** | flat and spread: nucleus, nucleoli, Golgi and centrosome, stress fibres ending in focal adhesions, mitochondria |
-| **Microglia** | ramified processes, bean-shaped nucleus, lysosomes / phagolysosome, mitochondria |
-| **Neuron** | soma, axon hillock, axon + terminal, dendrites, nucleolus, Nissl bodies, mitochondria |
+| **Fibroblast** | flat and spread: nucleus, nucleoli, Golgi ribbon and centrosome, microtubules, ER, stress fibres ending in focal adhesions, mitochondria |
+| **Microglia** | ramified processes, bean-shaped nucleus, small Golgi and centrosome, lysosomes / phagolysosome, mitochondria |
+| **Neuron** | soma, axon hillock, axon + terminal, dendrites, nucleolus, Nissl bodies, Golgi ribbon around the nucleus and an outpost in a dendrite, microtubules, mitochondria |
+| **Animal cell** | the textbook composite: plasma membrane, nucleus + nucleolus, rough ER in curved sheets around the nucleus, one Golgi ribbon curled around the centrosome, smooth ER tubules, microtubules, mitochondria, lysosomes, endosomes, peroxisomes |
+| **Plant cell** | a palisade cell of a leaf: cell wall, a vacuole taking half the cell, chloroplasts with grana lining the wall, a flattened nucleus, rough and cortical ER, Golgi stacks, mitochondria, peroxisomes |
+| **Aspergillus hypha** | the growing tip of a mould: wall, Spitzenkörper, nuclei spaced as measured, ring-shaped Golgi equivalents, microtubules, ER, a septum with its pore and Woronin bodies, vacuoles, mitochondria |
+| **Bacteriophage T4** | head with its DNA, tail sheath around the tail tube, baseplate, six long tail fibres folded up as on a free phage (all dimensions from cryo-EM) |
+| **Coronavirus** | SARS-CoV-2: envelope, 24 spikes, RNA packed in beads |
 
 Teaching aids:
 - **Labels** that ride with the jelly; toggle them with the Labels button or `L`. Click one for a card with its real size, what it does, a real micrograph of the structure (EM, fluorescence or light, from Wikimedia Commons, credited with author and licence; `src/teach/micrographs.ts`) and a link to the Wikipedia article (`src/teach/wiki.ts`).
@@ -33,7 +38,7 @@ Teaching aids:
   - A live graph at the bottom of the stage follows the reporter over time, with earlier runs kept as faint lines.
 - **Views**: *Anatomy* or *Deformation* (mechanical strain: Green–Lagrange strain from 0 to 30 %+, so you see where a pull or a squeeze goes). Deformation colours the knife faces too, so a cut shows it inside.
 
-`?cell=neuron` (or `rbc`, `fibroblast`, `microglia`, `yeast`, `pombe`, `ecoli`) opens a specific cell.
+`?cell=neuron` (or `rbc`, `fibroblast`, `microglia`, `yeast`, `pombe`, `ecoli`, `animal`, `plant`, `aspergillus`, `phage`, `coronavirus`) opens a specific specimen.
 
 It is a static site: WebGPU for rendering and TypeScript XPBD physics on the CPU. There are no runtime dependencies.
 
@@ -61,7 +66,7 @@ It needs a browser with WebGPU: current Chrome or Edge, Safari 18+, or Firefox w
 
 ## How it works
 
-- **Cell types** (`src/cells`): each is a `CellType` (see `src/contracts.ts`). It provides a body (ellipsoids, tori and tapered tubes combined by smooth union or subtraction), organelles, labels, key, stiffness per material, camera and µm-per-unit scale.
+- **Cell types** (`src/cells`): each is a `CellType` (see `src/contracts.ts`). It provides a body (ellipsoids, tori and tapered tubes combined by smooth union or subtraction; organelles can also be flat discs and curved sheets, the latter for Golgi cisternae and ER), organelles, labels, key, stiffness per material, camera and µm-per-unit scale.
 - **Cycle laws** (`src/cells/cycle`): the measured quantities of each dividing cell (lengths, growth law, nuclear volume fraction, replication periods) as constants with their sources, and pure functions of the cycle phase. The cell files build their stages from these.
 - **Organelle motion and detail** (`src/cells/cycle/dynamics.ts`, `render/shaders/organelle.wgsl`): fission yeast microtubules grow to the tip, pause and collapse; the E. coli nucleoid breathes and FtsZ clusters travel around the Z ring; mitochondria ride along the axon. The rates are measured ones, sped up by a factor given on each label, and reach the shader from the same table the tests check. Yeast nuclei carry the measured number of pores; the Golgi is stacks of seven cisternae.
 - **Fission** (`World.divide`): the last stage of a dividing cell carries a `fission` plane; when a morph lands on it the cell is split along that plane with the cutting machinery, no knife involved.
@@ -86,7 +91,7 @@ The types every layer agrees on live in `src/contracts.ts`. Behaviour is specifi
 
 ## Scale
 
-Each cell type maps sim units to µm (E. coli 0.35, yeast 1, fission yeast 1.25, RBC 1.25, microglia 1.5, neuron 2, fibroblast 4), so labels, the scale bar, the cut report and the mass are in real units. The *dynamics* are illustrative: every cell moves as if it were a few centimetres of gelatin. At true size a cell lives at very low Reynolds number and would never visibly wobble.
+Each specimen maps sim units to µm (coronavirus 0.018, bacteriophage 0.02, E. coli 0.35, yeast 1, Aspergillus 1, fission yeast 1.25, RBC 1.25, microglia 1.5, neuron 2, animal cell 3, fibroblast 4, plant cell 6), so labels, the scale bar, the cut report and the mass are in real units. The specimens therefore all look about the same size on screen while spanning a factor of 500: watch the scale bar. The *dynamics* are illustrative: every cell moves as if it were a few centimetres of gelatin. At true size a cell lives at very low Reynolds number and would never visibly wobble.
 
 ## Image credits
 

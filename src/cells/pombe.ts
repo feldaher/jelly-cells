@@ -4,8 +4,8 @@
 
 import { Mat, Prim, type Anatomy, type BodyPart, type CellType, type Label, type Primitive, type Stage, type Vec3 } from '../contracts';
 import { rng } from '../math/mat3';
-import { cellSdf, materialAt } from '../anatomy/sdf';
-import { addTubule, cone, ell, finish, lerp3, union } from './common';
+import { cellSdf, materialAt, primSdf } from '../anatomy/sdf';
+import { addTubule, anchorIn, bowl, bowlMid, cone, ell, finish, lerp3, norm3, samplePoint, union } from './common';
 import { waistOverlap } from './cycle/geometry';
 import { POMBE, pombeDaughterNucleusRadius, pombeLength, pombeNucleusRadius, pombeTipGrowth } from './cycle/pombe';
 
@@ -166,6 +166,28 @@ function build(seed = 7, stage = 2): Anatomy {
     if (plan.ring > 0 || plan.waist < 1) c[0] = v.side * Math.max(Math.abs(c[0]), v.r + 0.3);
     if (cellSdf(an, ...c) < -(v.r + WALL)) o.push(ell(c, [v.r, v.r, v.r], Mat.Vacuole));
   }
+
+  // Endoplasmic reticulum and Golgi, with their own random sequence so that everything above stays
+  // where it was. As in budding yeast, the ER is the nuclear envelope plus a network lying against
+  // the plasma membrane; it is drawn as tubules running the length of the cell under the wall,
+  // interrupted where the septum grows. Their number and course are a drawing.
+  const divided = plan.ring > 0 || plan.waist < 1;
+  const erRho = R - WALL - 0.08, erGap = 0.35;
+  for (let k = 0; k < 5; k++) {
+    const t = (k / 5) * 2 * Math.PI + 0.4, y = erRho * Math.cos(t), z = erRho * Math.sin(t);
+    const spans: [number, number][] = divided ? [[-half + R, -erGap], [erGap, half - R]] : [[-half + R, half - R]];
+    for (const [x0, x1] of spans) addTubule(mt, [0, 1 / 3, 2 / 3, 1].map((f) => [x0 + (x1 - x0) * f, y, z] as Vec3), 0.03, Mat.ER);
+  }
+  // Golgi: unlike baker's yeast, fission yeast keeps its cisternae in small stacks. Four are drawn,
+  // each of three cupped cisternae; the number of stacks and of cisternae is not a measured value.
+  const golgiRand = rng(seed + 523);
+  const clear = (p: Vec3) => cellSdf(an, ...p) < -(WALL + 0.3) && o.every((q) => primSdf(q, ...p) > 0.3) && (!divided || Math.abs(p[0]) > 0.6);
+  for (let s = 0; s < 4; s++) {
+    const side = s % 2 ? 1 : -1;
+    const g = samplePoint(golgiRand, side < 0 ? [-half + R, -R, -R] : [0.2, -R, -R], side < 0 ? [-0.2, R, R] : [half - R, R, R], clear);
+    const axis = norm3([golgiRand() - 0.5, golgiRand() - 0.5, golgiRand() - 0.5]);
+    if (g) for (let i = 0; i < 3; i++) o.push(bowl([g[0] - axis[0] * 0.8, g[1] - axis[1] * 0.8, g[2] - axis[2] * 0.8], axis, 0.8 + (i - 1) * 0.07, 0.4, 0.018, Mat.Golgi));
+  }
   return an;
 }
 
@@ -225,6 +247,11 @@ function labels(an: Anatomy): Label[] {
     blurb: 'New wall laid down as a closing diaphragm: a primary septum flanked by two secondary ones, which will become the daughters\' new ends.' });
   if (st === 6) out.push({ id: 'new-ends', name: 'New cell ends', anchor: [0.3, 0, 0.2], size: '',
     blurb: 'The two halves of the septum, now the daughters\' new ends. They are softer than the side wall and bulge into domes under turgor as the cells part.' });
+  const erTubes = an.tubules.filter((t) => t.material === Mat.ER), stacks = all(Mat.Golgi);
+  if (erTubes.length) out.push({ id: 'er', name: 'Cortical ER', material: Mat.ER, anchor: anchorIn(an, erTubes.flatMap((t) => t.points.slice(1, -1)), Mat.ER), size: 'tubules and sheets under the membrane, drawn as tubules',
+    blurb: 'The endoplasmic reticulum of a yeast is its nuclear envelope plus a network lying flat against the plasma membrane, joined by a few tubules. Here the cortical network is drawn as five tubules running the length of the cell. It is cut in two with the cell at division.' });
+  if (stacks.length) out.push({ id: 'golgi', name: 'Golgi stack', material: Mat.Golgi, anchor: anchorIn(an, stacks.map(bowlMid), Mat.Golgi), size: 'drawn ≈ 0.5 µm across',
+    blurb: 'Fission yeast keeps its Golgi cisternae in small stacks, as animal and plant cells do, where baker\'s yeast has them scattered singly. The number of stacks and of cisternae drawn is not a measured value.' });
   return out;
 }
 
@@ -242,6 +269,7 @@ export const pombe: CellType = {
   key: [
     { material: Mat.Wall, name: 'Cell wall' }, { material: Mat.Cytoplasm, name: 'Cytoplasm' },
     { material: Mat.Nucleus, name: 'Nucleus' }, { material: Mat.Nucleolus, name: 'Nucleolus' },
+    { material: Mat.ER, name: 'ER' }, { material: Mat.Golgi, name: 'Golgi stacks' },
     { material: Mat.Spindle, name: 'Microtubules' }, { material: Mat.Mitochondrion, name: 'Mitochondria' },
     { material: Mat.Vacuole, name: 'Vacuoles' }, { material: Mat.Ring, name: 'Contractile ring' },
     { material: Mat.Septum, name: 'Septum' }, { material: Mat.BudScar, name: 'Birth scar' },
