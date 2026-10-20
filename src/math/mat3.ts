@@ -1,1 +1,1 @@
-export * from '../engine/math/mat3';
+export * from '@feldaher/cell-engine/math/mat3';

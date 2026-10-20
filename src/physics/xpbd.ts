@@ -1,1 +1,1 @@
-export * from '../engine/physics/xpbd';
+export * from '@feldaher/cell-engine/physics/xpbd';

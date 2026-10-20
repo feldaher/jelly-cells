@@ -1,1 +1,1 @@
-export * from '../engine/physics/grab';
+export * from '@feldaher/cell-engine/physics/grab';

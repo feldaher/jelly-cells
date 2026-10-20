@@ -1,9 +1,9 @@
 // Jelly Cells' parameters on top of the engine's: material stiffnesses by cell type.
 
 import { Mat, MATERIAL_COUNT, type CellType, type SimParams } from '../contracts';
-import { defaultParams as engineDefaults } from '../engine/physics/params';
+import { defaultParams as engineDefaults } from '@feldaher/cell-engine/physics/params';
 
-export { UNIT_CM, GRAVITY, BASE_YOUNG, youngFor, dampingRate } from '../engine/physics/params';
+export { UNIT_CM, GRAVITY, BASE_YOUNG, youngFor, dampingRate } from '@feldaher/cell-engine/physics/params';
 
 export function defaultParams(): SimParams {
   const materialStiffness = new Array(MATERIAL_COUNT).fill(1);

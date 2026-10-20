@@ -55,6 +55,8 @@ npm run build      # static site in dist/
 
 It needs a browser with WebGPU: current Chrome or Edge, Safari 18+, or Firefox with WebGPU enabled.
 
+The soft-body engine (meshing, XPBD, contact, cutting) is the shared package [cell-engine](https://github.com/feldaher/cell-engine), pinned to a tag in `package.json`. To work on both at once, clone it next to this project (`projects/cell-engine/engine`) and run `CELL_ENGINE=local npm run dev`.
+
 ## Controls
 
 | | |
@@ -66,6 +68,7 @@ It needs a browser with WebGPU: current Chrome or Edge, Safari 18+, or Firefox w
 
 ## How it works
 
+- **Engine** ([cell-engine](https://github.com/feldaher/cell-engine)): the cell is meshed and simulated as an engine `Shape` (`src/anatomy/shape.ts` builds it from the anatomy: its SDF, cut planes and a material per point); the organelles ride along as passengers. `src/mesh`, `src/physics` and `src/cut` keep their old interfaces as thin adapters over the engine.
 - **Cell types** (`src/cells`): each is a `CellType` (see `src/contracts.ts`). It provides a body (ellipsoids, tori and tapered tubes combined by smooth union or subtraction; organelles can also be flat discs and curved sheets, the latter for Golgi cisternae and ER), organelles, labels, key, stiffness per material, camera and µm-per-unit scale.
 - **Cycle laws** (`src/cells/cycle`): the measured quantities of each dividing cell (lengths, growth law, nuclear volume fraction, replication periods) as constants with their sources, and pure functions of the cycle phase. The cell files build their stages from these.
 - **Organelle motion and detail** (`src/cells/cycle/dynamics.ts`, `render/shaders/organelle.wgsl`): fission yeast microtubules grow to the tip, pause and collapse; the E. coli nucleoid breathes and FtsZ clusters travel around the Z ring; mitochondria ride along the axon. The rates are measured ones, sped up by a factor given on each label, and reach the shader from the same table the tests check. Yeast nuclei carry the measured number of pores; the Golgi is stacks of seven cisternae.

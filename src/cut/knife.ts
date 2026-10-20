@@ -1,1 +1,1 @@
-export * from '../engine/cut/knife';
+export * from '@feldaher/cell-engine/cut/knife';

@@ -2,8 +2,8 @@
 // organelles to every piece.
 
 import { Mat, type Anatomy, type Plane, type SimMesh, type SkinMesh } from '../contracts';
-import type { PieceSource, Shape } from '../engine/contracts';
-import { embedMesh, updateSkin, type TetGrid } from '../engine/mesh/embed';
+import type { PieceSource, Shape } from '@feldaher/cell-engine/contracts';
+import { embedMesh, updateSkin, type TetGrid } from '@feldaher/cell-engine/mesh/embed';
 import { mergeMeshes, organelleTemplates, type OrganelleTemplate } from '../mesh/organelleMesh';
 import { cellSdf, materialAt, pieceSdf } from './sdf';
 

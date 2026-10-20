@@ -1,1 +1,1 @@
-export * from '../engine/physics/contact';
+export * from '@feldaher/cell-engine/physics/contact';

@@ -10,6 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "dependencies": {
+    "@feldaher/cell-engine": "git+https://github.com/feldaher/cell-engine.git#v0.1.0"
+  },
   "devDependencies": {
     "@amiceli/vitest-cucumber": "^5.2.1",
     "@webgpu/types": "^0.1.74",

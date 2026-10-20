@@ -2,9 +2,9 @@
 // The WGSL in render/shaders/common.wgsl mirrors primSdf / cellSdf exactly. The primitives are the engine's.
 
 import { Mat, PRIM_STRIDE, type Anatomy, type BodyPart, type Ellipsoid, type Material, type Plane, type Vec3 } from '../contracts';
-import { planeDist, primBounds, primSdf, smax, smin } from '../engine/sdf/primitives';
+import { planeDist, primBounds, primSdf, smax, smin } from '@feldaher/cell-engine/sdf/primitives';
 
-export { gradient, planeDist, primBounds, primSdf, smax, smin } from '../engine/sdf/primitives';
+export { gradient, planeDist, primBounds, primSdf, smax, smin } from '@feldaher/cell-engine/sdf/primitives';
 
 export function ellipsoidSdf(e: Ellipsoid, x: number, y: number, z: number): number {
   const px = x - e.centre[0], py = y - e.centre[1], pz = z - e.centre[2];

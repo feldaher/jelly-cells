@@ -1,1 +1,1 @@
-export * from '../engine/physics/metrics';
+export * from '@feldaher/cell-engine/physics/metrics';

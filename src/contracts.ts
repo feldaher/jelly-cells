@@ -4,11 +4,11 @@
 // Units: sim units; each cell type says how many µm one unit stands for (`umPerUnit`).
 // World is y-up, the floor is the plane y = 0.
 
-import type { Plane, Primitive as EnginePrimitive, Vec3 } from './engine/contracts';
+import type { Plane, Primitive as EnginePrimitive, Vec3 } from '@feldaher/cell-engine/contracts';
 
 // The engine's types (soft bodies, meshes, cuts); this file adds the cells.
-export type { CutChild, CutPlan, Piece, Plane, PrimKind, SimMesh, SimParams, SkinMesh, Vec3, WorldMesh } from './engine/contracts';
-export { Prim, PRIM_STRIDE } from './engine/contracts';
+export type { CutChild, CutPlan, Piece, Plane, PrimKind, SimMesh, SimParams, SkinMesh, Vec3, WorldMesh } from '@feldaher/cell-engine/contracts';
+export { Prim, PRIM_STRIDE } from '@feldaher/cell-engine/contracts';
 
 /** Material ids. The numeric values are shared with the WGSL shaders. */
 export const Mat = {
