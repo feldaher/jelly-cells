@@ -1,8 +1,9 @@
 // Signed distance fields of the cell and its organelles, in rest space (sim units).
-// The WGSL in render/shaders/common.wgsl mirrors primSdf / cellSdf exactly. The primitives are the engine's.
+// The WGSL in cell-engine's render/shaders/common.wgsl mirrors primSdf / cellSdf exactly. The primitives are the engine's.
 
-import { Mat, PRIM_STRIDE, type Anatomy, type BodyPart, type Ellipsoid, type Material, type Plane, type Vec3 } from '../contracts';
+import { Mat, type Anatomy, type BodyPart, type Ellipsoid, type Material, type Plane, type Vec3 } from '../contracts';
 import { planeDist, primBounds, primSdf, smax, smin } from '@feldaher/cell-engine/sdf/primitives';
+import { packPrimitives } from '@feldaher/cell-engine/render/primitives';
 
 export { gradient, planeDist, primBounds, primSdf, smax, smin } from '@feldaher/cell-engine/sdf/primitives';
 
@@ -68,15 +69,6 @@ export function materialAt(an: Anatomy, x: number, y: number, z: number, wallDep
  * Packs body parts then organelles as [kind, material, R, r, a.xyz, op, b.xyz, blend]
  * for the GPU storage buffer (op: 0 union, 1 subtract, 2 morph).
  */
-const OP_CODE = { union: 0, subtract: 1, morph: 2 } as const;
 export function packAnatomyGPU(an: Anatomy): Float32Array {
-  const all = [...an.body.map((b) => ({ p: b.prim, op: OP_CODE[b.op], blend: b.blend })), ...an.organelles.map((p) => ({ p, op: 0, blend: 0 }))];
-  const out = new Float32Array(all.length * PRIM_STRIDE);
-  all.forEach(({ p, op, blend }, i) => {
-    const b = i * PRIM_STRIDE;
-    out[b] = p.kind; out[b + 1] = p.material; out[b + 2] = p.R; out[b + 3] = p.r;
-    out.set(p.a, b + 4); out[b + 7] = op;
-    out.set(p.b, b + 8); out[b + 11] = blend;
-  });
-  return out;
+  return packPrimitives(an.body, an.organelles);
 }

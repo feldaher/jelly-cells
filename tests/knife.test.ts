@@ -1,7 +1,7 @@
 import { loadFeature, describeFeature } from '@amiceli/vitest-cucumber';
 import { expect } from 'vitest';
 import { bladeMesh, KnifePart, startKnife, type Knife } from '../src/cut/knife';
-import type { WorldMesh } from '../src/render/renderer';
+import type { WorldMesh } from '../src/contracts';
 import { freshCell } from './helpers';
 
 const feature = await loadFeature('features/knife.feature');

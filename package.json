@@ -11,7 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@feldaher/cell-engine": "git+https://github.com/feldaher/cell-engine.git#v0.1.0"
+    "@feldaher/cell-engine": "github:feldaher/cell-engine#v0.4.0"
   },
   "devDependencies": {
     "@amiceli/vitest-cucumber": "^5.2.1",

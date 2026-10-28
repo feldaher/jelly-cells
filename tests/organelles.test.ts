@@ -1,6 +1,6 @@
 import { loadFeature, describeFeature } from '@amiceli/vitest-cucumber';
 import { expect } from 'vitest';
-import wgsl from '../src/render/shaders/common.wgsl?raw';
+import wgsl from '@feldaher/cell-engine/render/shaders/common.wgsl?raw';
 import { cellType } from '../src/cells';
 import { primSdf } from '../src/anatomy/sdf';
 import { bowlMesh } from '../src/mesh/organelleMesh';

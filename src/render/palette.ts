@@ -1,29 +1,15 @@
-// "Varieties": three ways of looking at the same cell. Colours are sRGB hex;
-// the renderer converts them to linear. Slots match the WGSL Frame palette/mats.
+// "Varieties": three ways of looking at the same cell. Colours are sRGB hex; the engine packs
+// them linear into the slots its shaders read (cell-engine render/palette.ts).
 
+import { hexToLinear, linearToHex, packPalette as packEngine, type Variety as EngineVariety } from '@feldaher/cell-engine/render/palette';
 import { Mat, MATERIAL_COUNT, MATERIAL_SLOTS, type Material, type ReporterLook, type Vec3 } from '../contracts';
 
-export interface Variety {
+export { hexToLinear };
+
+export interface Variety extends EngineVariety {
   id: 'brightfield' | 'fluorescence' | 'electron' | 'reporter';
-  name: string;
-  /** Page / floor colour. */
-  background: string;
-  ink: string;
-  /** Beer–Lambert absorption per unit of cytoplasm, rgb. */
-  absorb: Vec3;
-  /** In-scattering colour of the cytoplasm (also its key swatch). */
-  scatter: string;
-  scatterDensity: number;
   /** Colour of every material other than cytoplasm. */
   colors: Partial<Record<Material, string>>;
-  membrane: string;
-  membraneStrength: number;
-  /** 0 = lit pigment, 1 = self-luminous (fluorescence). */
-  emissive: number;
-  refraction: number;
-  /** How mirror-like the jelly surface is (0–1). */
-  gloss: number;
-  swatch: [string, string];
 }
 
 export const VARIETIES: Variety[] = [
@@ -104,33 +90,7 @@ export function reporterVariety(look: ReporterLook): Variety {
   };
 }
 
-function linearToHex(c: Vec3): string {
-  return '#' + c.map((v) => {
-    const x = Math.min(1, Math.max(0, v));
-    const s = x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055;
-    return Math.round(255 * s).toString(16).padStart(2, '0');
-  }).join('');
-}
-
-export function hexToLinear(hex: string): Vec3 {
-  const n = parseInt(hex.slice(1), 16);
-  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
-    const s = v / 255;
-    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  });
-  return [c[0], c[1], c[2]];
-}
-
-/** 6 general palette slots + one colour per material slot, as vec4s (see common.wgsl). */
+/** The packed palette; a cell type's cytoplasm absorption replaces the variety's in brightfield only. */
 export function packPalette(v: Variety, absorbOverride?: Vec3): Float32Array {
-  const o = new Float32Array((6 + MATERIAL_SLOTS) * 4);
-  const set = (i: number, rgb: ArrayLike<number>, w = 1) => { o.set(rgb, 4 * i); o[4 * i + 3] = w; };
-  set(0, v.id === 'brightfield' && absorbOverride ? absorbOverride : v.absorb);
-  set(1, hexToLinear(v.scatter), v.scatterDensity);
-  set(2, hexToLinear(v.background));
-  set(3, hexToLinear(v.membrane), v.membraneStrength);
-  set(4, [v.refraction, v.emissive, v.gloss], 0);
-  set(5, hexToLinear(v.ink));
-  for (let m = 1; m < MATERIAL_SLOTS; m++) set(6 + m, hexToLinear(v.colors[m as Material] ?? v.scatter));
-  return o;
+  return packEngine(v, MATERIAL_SLOTS, v.id === 'brightfield' ? absorbOverride : undefined);
 }

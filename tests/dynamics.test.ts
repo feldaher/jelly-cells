@@ -1,6 +1,6 @@
 import { loadFeature, describeFeature } from '@amiceli/vitest-cucumber';
 import { expect } from 'vitest';
-import organelleWgsl from '../src/render/shaders/organelle.wgsl?raw';
+import organelleWgsl from '../src/render/organelleHooks.wgsl?raw';
 import { CELL_TYPES, cellType } from '../src/cells';
 import { DYNAMICS, dynamicsWgsl, microtubuleEnd, microtubulePeriod, poreCount } from '../src/cells/cycle/dynamics';
 import { buildPiece } from '../src/mesh/piece';

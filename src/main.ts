@@ -11,8 +11,9 @@ import { startGrab } from './physics/grab';
 import { axisAngleMat } from './math/mat3';
 import { bladeMesh } from './cut/knife';
 import { initWelcome } from './ui/welcome';
-import { Renderer, type Camera } from './render/renderer';
-import { reporterVariety, REPORTER_HIDDEN, VARIETIES, type Variety } from './render/palette';
+import { Renderer, type Camera } from '@feldaher/cell-engine/render/renderer';
+import { rendererOptions, setAnatomy } from './render/gpu';
+import { packPalette, reporterVariety, REPORTER_HIDDEN, VARIETIES, type Variety } from './render/palette';
 import { StressUi } from './ui/stress';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -76,7 +77,7 @@ function fail(msg: string) {
 async function main() {
   let renderer: Renderer;
   try {
-    renderer = await Renderer.create(canvas);
+    renderer = await Renderer.create(canvas, rendererOptions());
   } catch (e) {
     fail(`${(e as Error).message} Try a recent Chrome, Edge or Safari (18+), or Firefox with WebGPU enabled.`);
     return;
@@ -87,7 +88,7 @@ async function main() {
   await new Promise((r) => setTimeout(r, 30));
   const initial = (new URLSearchParams(location.search).get('cell') as CellTypeId) || 'yeast';
   const world = new World(CELL_TYPES.some((c) => c.id === initial) ? initial : 'yeast');
-  renderer.setAnatomy(world.an);
+  setAnatomy(renderer, world.an);
   statusText.textContent = 'WebGPU · Live';
 
   teach = new TeachUi(world);
@@ -103,7 +104,7 @@ async function main() {
     const dt = (now - last) / 1000;
     last = now;
     world.update(dt);
-    if (world.anatomyVersion !== seenAnatomy) { seenAnatomy = world.anatomyVersion; renderer.setAnatomy(world.an); }
+    if (world.anatomyVersion !== seenAnatomy) { seenAnatomy = world.anatomyVersion; setAnatomy(renderer, world.an); }
     if (world.labelsVersion !== seenLabels) { seenLabels = world.labelsVersion; teach.refreshLabels(); }
     if (world.morphing || morphShown) { morphShown = world.morphing; followStage(world); }
     // follow the pieces, gently
@@ -114,9 +115,9 @@ async function main() {
     cam.target[2] += (c[2] - cam.target[2]) * k;
     const c0 = camera();
     renderer.render(world.pieces, c0, {
-      variety: shownVariety(world), showMesh, time: now / 1000,
+      palette: packPalette(shownVariety(world), world.type.absorb), showMesh, time: now / 1000,
       knife: world.knife ? bladeMesh(world.knife) : null,
-      highlight: teach.highlight, hidden: teach.hidden | world.hiddenMaterials | (world.view === 'reporter' ? REPORTER_HIDDEN : 0), absorb: world.type.absorb, view: world.view,
+      highlight: teach.highlight, hidden: teach.hidden | world.hiddenMaterials | (world.view === 'reporter' ? REPORTER_HIDDEN : 0), scalarView: world.view === 'deformation',
     });
     teach.setAbsent(world.hiddenMaterials);
     teach.update(renderer.viewProj, c0.eye, c0.target, canvas.clientWidth, canvas.clientHeight);
@@ -229,7 +230,7 @@ function setupUi(world: World, renderer: Renderer) {
     select.disabled = true;
     await new Promise((r) => setTimeout(r, 30));
     world.setCellType(select.value as CellTypeId);
-    renderer.setAnatomy(world.an);
+    setAnatomy(renderer, world.an);
     showType(world);
     select.disabled = false;
     statusText.textContent = world.paused ? 'WebGPU · Paused' : 'WebGPU · Live';
@@ -247,7 +248,7 @@ function setupUi(world: World, renderer: Renderer) {
       await new Promise((r) => setTimeout(r, 20));
     }
     if (world.morphTo(s, rate) === 'rebuilt') {
-      renderer.setAnatomy(world.an);
+      setAnatomy(renderer, world.an);
       teach.setType(world.type, variety);
       showStage(world);
     }
@@ -273,7 +274,7 @@ function setupUi(world: World, renderer: Renderer) {
     if (world.stage >= n - 1) {
       // back to the start, then play through
       world.setCellType(world.type.id, 0);
-      renderer.setAnatomy(world.an);
+      setAnatomy(renderer, world.an);
       teach.setType(world.type, variety);
       showStage(world);
     }
