@@ -37,4 +37,11 @@ describeFeature(feature, ({ Scenario }) => {
       expect(v.fluorescence.ink).toBe(prim('neutral-100'));
     });
   });
+  Scenario('Jelly Cells links back to the website and across to Turgor', ({ Then }) => {
+    Then('the page has a navigation row linking to the website home and to Turgor', () => {
+      const nav = html.match(/<nav class="site-nav"[\s\S]*?<\/nav>/)?.[0] ?? '';
+      expect(nav).toMatch(/href="https:\/\/feldaher\.github\.io\/"/);
+      expect(nav).toMatch(/href="https:\/\/feldaher\.github\.io\/turgor\/"/);
+    });
+  });
 });

@@ -78,7 +78,7 @@ h1 .indent { padding-left: 0.48em; }
 .checks input:checked::after { content: ''; width: 6px; height: 6px; background: var(--ink); }
 
 .swatches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.swatch { background: none; border: 1px solid transparent; padding: 6px 5px 5px; cursor: pointer; display: grid; gap: 5px; color: var(--muted); font: 12px var(--sans); text-align: left; min-width: 0; overflow-wrap: anywhere; }
+.swatch { background: none; border: 1px solid transparent; padding: 6px 5px 5px; cursor: pointer; display: grid; gap: 5px; color: var(--muted); font: 11.5px var(--sans); letter-spacing: -0.01em; text-align: left; min-width: 0; white-space: nowrap; }
 .swatch.active { border-color: var(--faint); color: var(--ink); }
 .swatch .chip { height: 22px; border-top: 5px solid var(--a); background: var(--b); border-radius: 1px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent); }
 
@@ -302,3 +302,22 @@ select option { font: 14px var(--sans); color: var(--color-text); background: va
 .swatch { border-radius: var(--radius-md); }
 .welcome-start { border-radius: var(--radius-button-lg); background: var(--color-brand); border-color: var(--color-brand); color: var(--color-on-brand); }
 @media (max-width: 900px) { .panel { border-radius: var(--radius-lg) var(--radius-lg) 0 0; } }
+
+/* Back to the website, and across to the sister app: a mono label row above the title. */
+.site-nav { pointer-events: auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-3); font: 400 var(--type-label)/var(--lh-label) var(--font-mono); letter-spacing: var(--ls-label); text-transform: uppercase; }
+.site-nav a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--color-brand); text-decoration-thickness: 1.5px; text-underline-offset: 4px; padding: var(--space-1) 0; transition: color 150ms ease, text-decoration-color 150ms ease; }
+.site-nav span { color: var(--muted); }
+.site-nav a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: var(--radius-xs); }
+@media (hover: hover) and (pointer: fine) { .site-nav a:hover { color: var(--color-link); text-decoration-color: var(--color-link); } }
+/* Narrow: the links take the top row; the status badge shows only on an error, and the eyebrow
+   keeps just its About link, so the corner stays clear. */
+@media (max-width: 900px) {
+  .site-nav { position: fixed; top: 12px; left: 16px; margin: 0; }
+  .title { top: 40px; }
+  .eyebrow { font-size: 0; margin-bottom: 6px; }
+  .eyebrow .about { margin-left: 0; font-size: var(--type-label); }
+  .status:not(.error) { display: none; }
+  .inside-open { top: 36px; }
+  .readout { top: 160px; }
+  .side-stack { top: 222px; }
+}

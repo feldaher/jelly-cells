@@ -10,3 +10,6 @@ Feature: Jelly Cells on the Academia Classy design system
 
   Scenario: Each microscope view sits on a design-system background
     Then brightfield and EM use light-theme colours and fluorescence uses dark-theme colours
+
+  Scenario: Jelly Cells links back to the website and across to Turgor
+    Then the page has a navigation row linking to the website home and to Turgor

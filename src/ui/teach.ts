@@ -220,7 +220,8 @@ export class TeachUi {
       let bx = Math.min(Math.max(b.x, 8), right - b.w);
       let by = Math.min(Math.max(b.y, 8), h - b.h - 8);
       if (key && by < key.bottom && by + b.h > key.top && bx < key.right) bx = Math.min(key.right + 8, right - b.w);
-      if (readout && by + b.h > readout.top && bx < readout.right) by = readout.top - b.h - 6;
+      // off the readout: above it when it is below the cell (wide), below it when it is above (narrow)
+      if (readout && by + b.h > readout.top && by < readout.bottom && bx < readout.right) by = readout.top > c.y ? readout.top - b.h - 6 : readout.bottom + 6;
       e.box.style.transform = `translate(${bx}px, ${by}px)`;
       e.dot.style.transform = `translate(${a.x}px, ${a.y}px)`;
       const ex = bx > a.x ? bx : bx + b.w;
