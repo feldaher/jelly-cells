@@ -26,7 +26,6 @@ export class TeachUi {
   private type!: CellType;
   private variety!: Variety;
   private lastCutSerial = 0;
-  private absent = 0;
   private layer = $('labels');
   private leaders = document.getElementById('leaders') as unknown as SVGSVGElement;
 
@@ -139,21 +138,13 @@ export class TeachUi {
   }
 
   private isHidden(m: Material | undefined) {
-    return m !== undefined && (((this.hidden | this.absent) >> m) & 1) === 1;
-  }
-
-  /** Tells the UI which materials are not there at the moment (a bitmask): they leave the key and lose their labels. */
-  setAbsent(mask: number) {
-    if (mask === this.absent) return;
-    this.absent = mask;
-    this.renderKey();
+    return m !== undefined && ((this.hidden >> m) & 1) === 1;
   }
 
   renderKey() {
     const ul = $('legend');
     ul.replaceChildren();
     for (const { material, name } of this.type.key) {
-      if ((this.absent >> material) & 1) continue;
       const li = document.createElement('li');
       const b = document.createElement('button');
       const hideable = material !== Mat.Cytoplasm;

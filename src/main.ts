@@ -13,8 +13,7 @@ import { bladeMesh } from './cut/knife';
 import { initWelcome } from './ui/welcome';
 import { Renderer, type Camera } from '@feldaher/cell-engine/render/renderer';
 import { rendererOptions, setAnatomy } from './render/gpu';
-import { packPalette, reporterVariety, REPORTER_HIDDEN, VARIETIES, type Variety } from './render/palette';
-import { StressUi } from './ui/stress';
+import { packPalette, VARIETIES, type Variety } from './render/palette';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = $<HTMLCanvasElement>('stage');
@@ -28,7 +27,6 @@ const help = (w: World) => ({
   knife: '<b>Knife</b>Draw a stroke across the cell. The blade comes down along it and splits every piece it crosses. Then turn the halves over and look at the faces.',
 });
 let teach: TeachUi;
-let stressUi: StressUi;
 /** True while the stage slider is being dragged, so the morph does not move it under the finger. */
 let scrubbing = false;
 
@@ -92,7 +90,6 @@ async function main() {
   statusText.textContent = 'WebGPU · Live';
 
   teach = new TeachUi(world);
-  stressUi = new StressUi(world, () => setView(world, world.view === 'reporter' ? 'anatomy' : 'reporter'));
   setupUi(world, renderer);
   setupInput(world, renderer);
 
@@ -115,23 +112,16 @@ async function main() {
     cam.target[2] += (c[2] - cam.target[2]) * k;
     const c0 = camera();
     renderer.render(world.pieces, c0, {
-      palette: packPalette(shownVariety(world), world.type.absorb), showMesh, time: now / 1000,
+      palette: packPalette(variety, world.type.absorb), showMesh, time: now / 1000,
       knife: world.knife ? bladeMesh(world.knife) : null,
-      highlight: teach.highlight, hidden: teach.hidden | world.hiddenMaterials | (world.view === 'reporter' ? REPORTER_HIDDEN : 0), scalarView: world.view === 'deformation',
+      highlight: teach.highlight, hidden: teach.hidden, scalarView: world.view === 'deformation',
     });
-    teach.setAbsent(world.hiddenMaterials);
     teach.update(renderer.viewProj, c0.eye, c0.target, canvas.clientWidth, canvas.clientHeight);
-    if (frame++ % 6 === 0) { updateStats(world); stressUi.update(); }
+    if (frame++ % 6 === 0) updateStats(world);
     if (debug && frame % 30 === 0) statusText.textContent = `step ${world.stepMs.toFixed(1)} ms`;
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
-}
-
-/** The palette on screen: the chosen variety, or the reporter's in the Reporter view. */
-function shownVariety(world: World): Variety {
-  const kind = world.view === 'reporter' ? world.stressResponse : null;
-  return kind ? reporterVariety(kind.look(world.stressState())) : variety;
 }
 
 function updateStats(world: World) {
@@ -159,9 +149,6 @@ function showType(world: World) {
   cam.target = [c[0], Math.min(3, Math.max(1.2, c[1])), c[2]];
   teach.setType(t, variety);
   showStage(world);
-  // the reporter view exists only for cells with a measured stress response
-  if (!t.stress && world.view === 'reporter') setView(world, 'anatomy');
-  stressUi.setType();
   const url = new URL(location.href);
   url.searchParams.set('cell', t.id);
   history.replaceState(null, '', url);
@@ -208,9 +195,7 @@ function setView(world: World, v: ViewMode) {
     o.classList.toggle('active', o.dataset.view === v);
     o.setAttribute('aria-checked', String(o.dataset.view === v));
   });
-  stressUi.showReporter(v === 'reporter');
   showColorbar(v);
-  applyTheme(world);
 }
 
 function showColorbar(view: ViewMode) {
@@ -301,12 +286,12 @@ function setupUi(world: World, renderer: Renderer) {
     b.addEventListener('click', () => {
       variety = v;
       sw.querySelectorAll('.swatch').forEach((o) => o.classList.toggle('active', o === b));
-      applyTheme(world);
+      applyTheme();
       teach.setVariety(v);
     });
     sw.appendChild(b);
   });
-  applyTheme(world);
+  applyTheme();
 
   const bindSlider = (id: string, set: (x: number) => void) => {
     const el = $<HTMLInputElement>(id), out = $(`${id}-out`);
@@ -350,8 +335,8 @@ function setupUi(world: World, renderer: Renderer) {
   });
 }
 
-function applyTheme(world: World) {
-  const root = document.documentElement, v = shownVariety(world);
+function applyTheme() {
+  const root = document.documentElement, v = variety;
   root.style.setProperty('--bg', v.background);
   root.style.setProperty('--ink', v.ink);
   root.dataset.variety = v.id;

@@ -75,11 +75,6 @@ export function mergeReports(reports: SectionEntry[][]): SectionEntry[] {
   return [...m.values()].sort((a, b) => b.areaUm2 - a.areaUm2);
 }
 
-/** A report without the materials that are hidden (a bitmask by material id), such as condensates no stress has formed. */
-export function shownEntries(report: SectionEntry[], hidden: number): SectionEntry[] {
-  return report.filter((e) => !((hidden >> e.material) & 1));
-}
-
 /** Section entries worth listing (the cytoplasm and wall are always there). */
 export function notableEntries(report: SectionEntry[]): SectionEntry[] {
   return report.filter((e) => e.material !== Mat.Cytoplasm && e.material !== Mat.Wall);
