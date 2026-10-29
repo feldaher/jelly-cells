@@ -13,6 +13,8 @@ export default defineConfig({
   optimizeDeps: { exclude: ['@feldaher/cell-engine'] },
   test: {
     include: ['tests/**/*.test.ts'],
+    // CSS is processed so the design test can read stylesheets with ?raw
+    css: true,
     exclude: ['**/*.sync-conflict-*', 'node_modules/**'],
     testTimeout: 60000,
     server: { deps: { inline: ['@feldaher/cell-engine'] } },

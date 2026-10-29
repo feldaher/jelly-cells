@@ -1,0 +1,197 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Academia Classy — design tokens (single source of truth)
+   Origin: Figma "Image Palette Generator" export, 2026-10-22.
+   Copy this file verbatim into a project; never edit project copies —
+   change it here, then re-copy.
+
+   Layers:
+     1. Primitives   --color-<family>-<step>, --space-*, --radius-*, --shadow-*
+     2. Type         --font-*, --type-* (size / line-height / tracking)
+     3. Semantic     --color-bg, --color-text, --color-link … (theme-aware)
+   Components should consume the semantic layer; reach for primitives
+   only when no semantic token fits.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Google Fonts (put in <head>, not @import, for speed):
+   https://fonts.googleapis.com/css2?family=Inder&family=Inria+Sans:ital,wght@0,300;0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap
+   Note: Inder ships a single weight (400). Inria Sans ships 300/400/700,
+   so spec "Medium" → 400 and "SemiBold" → 700. */
+
+:root {
+  /* ── 1. Color primitives ─────────────────────────────── */
+  --color-primary-50: #fff4f1;
+  --color-primary-100: #ffe1d8;
+  --color-primary-200: #ffcabc;
+  --color-primary-300: #ffb29c;
+  --color-primary-400: #f8957a;
+  --color-primary-500: #df7a5e;
+  --color-primary-600: #b9583d;
+  --color-primary-700: #923b22;
+  --color-primary-800: #6f2814;
+  --color-primary-900: #501a0b;
+
+  --color-secondary-50: #fff3f8;
+  --color-secondary-100: #ffdded;
+  --color-secondary-200: #fdbfde;
+  --color-secondary-300: #efa3c9;
+  --color-secondary-400: #d47fab;
+  --color-secondary-500: #621043;
+  --color-secondary-600: #59053b;
+  --color-secondary-700: #4f0134;
+  --color-secondary-800: #43052c;
+  --color-secondary-900: #380a26;
+
+  --color-accent-50: #fff5ea;
+  --color-accent-100: #fceddc;
+  --color-accent-200: #f8e4ce;
+  --color-accent-300: #f4dbbe;
+  --color-accent-400: #edd0af;
+  --color-accent-500: #e1c3a0;
+  --color-accent-600: #967b5a;
+  --color-accent-700: #775e40;
+  --color-accent-800: #58442b;
+  --color-accent-900: #3a2b18;
+
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f4f3f3;
+  --color-neutral-200: #e6e5e4;
+  --color-neutral-300: #d0cfce;
+  --color-neutral-400: #acaaa8;
+  --color-neutral-500: #83807c;
+  --color-neutral-600: #5e5a56;
+  --color-neutral-700: #423f3c;
+  --color-neutral-800: #282624;
+  --color-neutral-900: #151412;
+
+  --color-success-50: #e3ffee;
+  --color-success-200: #a3e6c1;
+  --color-success-500: #22a06b;
+  --color-success-700: #00613d;
+  --color-danger-50: #fff4f3;
+  --color-danger-200: #ffc3bd;
+  --color-danger-500: #dc262f;
+  --color-danger-600: #b8001b;
+  --color-danger-700: #8f0012;
+  --color-warning-50: #fff5e7;
+  --color-warning-200: #ffd99f;
+  --color-warning-500: #e5a000;
+  --color-warning-700: #845a00;
+  --color-info-50: #f3f7ff;
+  --color-info-200: #bed5ff;
+  --color-info-500: #2563eb;
+  --color-info-700: #0034ac;
+
+  /* ── 2. Typography ───────────────────────────────────── */
+  --font-heading: "Inder", "Futura", "Avenir Next", system-ui, sans-serif;
+  --font-body: "Inria Sans", "Gill Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /*            size        line-height   tracking */
+  --type-h-xxl: 4.5rem;    --lh-h-xxl: 1;       --ls-h-xxl: -0.03em;  /* 72/72 */
+  --type-h-xl:  3.5rem;    --lh-h-xl:  1.05;    --ls-h-xl:  -0.02em;  /* 56/59 */
+  --type-h-l:   2.75rem;   --lh-h-l:   1.09;    --ls-h-l:   -0.02em;  /* 44/48 */
+  --type-h-m:   2.25rem;   --lh-h-m:   1.14;    --ls-h-m:   -0.01em;  /* 36/41 */
+  --type-h-s:   1.75rem;   --lh-h-s:   1.21;    --ls-h-s:   -0.01em;  /* 28/34 */
+  --type-h-xs:  1.375rem;  --lh-h-xs:  1.32;                          /* 22/29 */
+  --type-h-xxs: 1.125rem;  --lh-h-xxs: 1.33;                          /* 18/24 */
+  --type-body-l: 1.125rem; --lh-body-l: 1.61;                         /* 18/29 */
+  --type-body-m: 1rem;     --lh-body-m: 1.625;                        /* 16/26 */
+  --type-body-s: 0.875rem; --lh-body-s: 1.57;                         /* 14/22 */
+  --type-button-l: 1rem;     --ls-button-l: 0.01em;                   /* 16/19 */
+  --type-button-m: 0.875rem; --ls-button-m: 0.01em;                   /* 14/17 */
+  --type-button-s: 0.75rem;  --ls-button-s: 0.02em;                   /* 12/14 */
+  --type-caption: 0.75rem;   --lh-caption: 1.42;  --ls-caption: 0.01em; /* 12/17 */
+  --type-label: 0.75rem;     --lh-label: 1.17;    --ls-label: 0.08em;   /* 12/14 mono */
+  --type-code: 0.875rem;     --lh-code: 1.57;                           /* 14/22 mono */
+
+  /* ── Spacing (4px grid) ──────────────────────────────── */
+  --space-0-5: 2px;  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;
+  --space-4: 16px;   --space-5: 20px;  --space-6: 24px;  --space-8: 32px;
+  --space-10: 40px;  --space-12: 48px; --space-16: 64px; --space-20: 80px;
+  --space-24: 96px;  --space-32: 128px;
+
+  /* ── Radius ──────────────────────────────────────────── */
+  --radius-none: 0;  --radius-xs: 2px; --radius-sm: 4px;  --radius-md: 8px;
+  --radius-lg: 12px; --radius-xl: 16px; --radius-2xl: 24px; --radius-pill: 9999px;
+  --radius-button-lg: 10px; --radius-button-sm: 8px;
+
+  /* ── Elevation ───────────────────────────────────────── */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.06);
+  --shadow-button-hover: 0 2px 6px 0 rgb(0 0 0 / 0.08);
+
+  /* ── 3. Semantic — light (spec) ──────────────────────── */
+  --color-bg: var(--color-neutral-50);            /* Surface/Background */
+  --color-surface: #ffffff;                       /* Surface/Card */
+  --color-surface-sunken: var(--color-neutral-100);
+  --color-surface-warm: var(--color-accent-50);
+  --color-text: var(--color-neutral-900);         /* Text/Strong */
+  --color-text-soft: var(--color-neutral-700);
+  --color-text-muted: #71706f;                    /* Text/Subtle (4.7:1, AA) */
+  --color-border: var(--color-neutral-200);       /* Border/Default */
+  --color-border-subtle: var(--color-neutral-100);/* Border/Subtle */
+  --color-link: var(--color-primary-700);         /* 7.0:1 — 600 fails AA for text */
+  --color-link-hover: var(--color-secondary-500);
+  --color-brand: var(--color-primary-500);        /* fills, rules, focus — not text */
+  --color-brand-strong: var(--color-primary-600);
+  --color-brand-tint: var(--color-primary-50);
+  --color-brand-tint-strong: var(--color-primary-100);
+  --color-brand-border: var(--color-primary-200);
+  --color-emphasis: var(--color-secondary-500);   /* plum: sparing highlight */
+  --color-focus: var(--color-primary-600);       /* 500 is 2.8:1 — too faint */
+  --color-on-brand: var(--color-neutral-900);     /* text on Primary/500 (6.2:1) */
+  --color-on-brand-strong: #ffffff;               /* text on Primary/600–700 */
+}
+
+/* ── Semantic — dark (derived; not in the Figma spec) ──── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: var(--color-neutral-900);
+    --color-surface: var(--color-neutral-800);
+    --color-surface-sunken: #1e1d1b;
+    --color-surface-warm: #231c17;
+    --color-text: var(--color-neutral-100);
+    --color-text-soft: var(--color-neutral-300);
+    --color-text-muted: var(--color-neutral-400);
+    --color-border: var(--color-neutral-700);
+    --color-border-subtle: var(--color-neutral-800);
+    --color-link: var(--color-primary-300);
+    --color-link-hover: var(--color-secondary-300);
+    --color-brand: var(--color-primary-400);
+    --color-brand-strong: var(--color-primary-300);
+    --color-brand-tint: rgb(223 122 94 / 0.12);
+    --color-brand-tint-strong: rgb(223 122 94 / 0.2);
+    --color-brand-border: var(--color-primary-800);
+    --color-emphasis: var(--color-secondary-300);
+    --color-focus: var(--color-primary-300);
+    --color-on-brand: var(--color-neutral-900);
+    --color-on-brand-strong: var(--color-neutral-900);
+  }
+}
+:root[data-theme="dark"] {
+  --color-bg: var(--color-neutral-900);
+  --color-surface: var(--color-neutral-800);
+  --color-surface-sunken: #1e1d1b;
+  --color-surface-warm: #231c17;
+  --color-text: var(--color-neutral-100);
+  --color-text-soft: var(--color-neutral-300);
+  --color-text-muted: var(--color-neutral-400);
+  --color-border: var(--color-neutral-700);
+  --color-border-subtle: var(--color-neutral-800);
+  --color-link: var(--color-primary-300);
+  --color-link-hover: var(--color-secondary-300);
+  --color-brand: var(--color-primary-400);
+  --color-brand-strong: var(--color-primary-300);
+  --color-brand-tint: rgb(223 122 94 / 0.12);
+  --color-brand-tint-strong: rgb(223 122 94 / 0.2);
+  --color-brand-border: var(--color-primary-800);
+  --color-emphasis: var(--color-secondary-300);
+  --color-focus: var(--color-primary-300);
+  --color-on-brand: var(--color-neutral-900);
+  --color-on-brand-strong: var(--color-neutral-900);
+}

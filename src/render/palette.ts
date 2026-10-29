@@ -14,7 +14,7 @@ export interface Variety extends EngineVariety {
 
 export const VARIETIES: Variety[] = [
   {
-    id: 'brightfield', name: 'Brightfield', background: '#e4e0da', ink: '#1d1b19',
+    id: 'brightfield', name: 'Brightfield', background: '#fafafa', ink: '#151412', // neutral-50, neutral-900
     absorb: [0.2, 0.28, 0.5], scatter: '#ecdcbc', scatterDensity: 0.32,
     colors: {
       [Mat.Wall]: '#f4efe2', [Mat.Nucleus]: '#9d8fc4', [Mat.Nucleolus]: '#5d4a8e', [Mat.Vacuole]: '#cfe0e6',
@@ -28,7 +28,7 @@ export const VARIETIES: Variety[] = [
     swatch: ['#f4efe2', '#e5c68e'],
   },
   {
-    id: 'fluorescence', name: 'Fluoro', background: '#16181b', ink: '#e8e6e1',
+    id: 'fluorescence', name: 'Fluoro', background: '#151412', ink: '#f4f3f3', // neutral-900, neutral-100
     absorb: [0.2, 0.17, 0.12], scatter: '#2a3440', scatterDensity: 0.1,
     colors: {
       [Mat.Wall]: '#6f86ff', [Mat.Nucleus]: '#4f7bff', [Mat.Nucleolus]: '#b9ccff', [Mat.Vacuole]: '#c46bff',
@@ -39,10 +39,10 @@ export const VARIETIES: Variety[] = [
       [Mat.Chloroplast]: '#ff4a3d', [Mat.Peroxisome]: '#ffd24a', [Mat.Genome]: '#4f8dff', [Mat.ViralProtein]: '#ff5fb0', [Mat.Vesicle]: '#ff9d5c',
     },
     membrane: '#e070ff', membraneStrength: 0.25, emissive: 1, refraction: 0.03, gloss: 0.3,
-    swatch: ['#16181b', '#57ff7c'],
+    swatch: ['#151412', '#57ff7c'],
   },
   {
-    id: 'electron', name: 'EM', background: '#d9d9d6', ink: '#1a1a1a',
+    id: 'electron', name: 'EM', background: '#e6e5e4', ink: '#151412', // neutral-200, neutral-900
     absorb: [0.5, 0.5, 0.48], scatter: '#8e8e89', scatterDensity: 0.6,
     colors: {
       [Mat.Wall]: '#dcdcd7', [Mat.Nucleus]: '#76766f', [Mat.Nucleolus]: '#2e2e2c', [Mat.Vacuole]: '#ededea',

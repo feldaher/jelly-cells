@@ -1,3 +1,4 @@
+import './tokens.css';
 import './style.css';
 import type { CellTypeId, Vec3, ViewMode } from './contracts';
 import { STRAIN_FULL } from './teach/fields';
@@ -337,8 +338,9 @@ function setupUi(world: World, renderer: Renderer) {
 
 function applyTheme() {
   const root = document.documentElement, v = variety;
+  // the page takes the view's background so it matches the canvas; fluorescence is the dark theme
   root.style.setProperty('--bg', v.background);
-  root.style.setProperty('--ink', v.ink);
+  root.dataset.theme = v.id === 'fluorescence' ? 'dark' : 'light';
   root.dataset.variety = v.id;
 }
 
